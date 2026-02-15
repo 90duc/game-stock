@@ -558,7 +558,7 @@ public class TradeView {
                 volume += line.getVolume();
             }
             
-            aggregated.setPrice(group.get(group.size() - 1).getPrice()); // 收盘价作为price
+            aggregated.setPrice(group.get(group.size() - 1).getPrice()); // 收盘价
             aggregated.setVolume(volume);
             aggregated.setGameSessionId(group.get(0).getGameSessionId());
             

@@ -3,8 +3,9 @@ package com.stockgame.model;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 
-public class DayKLine {
+public class DayKLine implements KLine<DayKLine> {
     private Long id;
     private Long stockId;
     private LocalDate tradeDate;
@@ -49,4 +50,26 @@ public class DayKLine {
     
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
+    
+    @Override
+    public String getLabel() {
+        return tradeDate != null ? tradeDate.toString() : "";
+    }
+    
+    @Override
+    public boolean hasOHLC() {
+        return true;
+    }
+    
+    @Override
+    public int compareTo(DayKLine other) {
+        if (tradeDate != null && other.tradeDate != null) {
+            int cmp = tradeDate.compareTo(other.tradeDate);
+            if (cmp != 0) return cmp;
+        }
+        if (id != null && other.id != null) {
+            return id.compareTo(other.id);
+        }
+        return 0;
+    }
 }

@@ -17,8 +17,6 @@ public class DataInitializer {
     private final UserDao userDao;
     private final StockDao stockDao;
     private final DayKLineDao dayKLineDao;
-    private final WeekKLineDao weekKLineDao;
-    private final MonthKLineDao monthKLineDao;
     
     private static final String[] STOCK_NAMES = {
             "腾讯控股", "阿里巴巴", "中国平安", "招商银行", "茅台集团",
@@ -34,8 +32,6 @@ public class DataInitializer {
         this.userDao = new UserDao();
         this.stockDao = new StockDao();
         this.dayKLineDao = new DayKLineDao();
-        this.weekKLineDao = new WeekKLineDao();
-        this.monthKLineDao = new MonthKLineDao();
     }
     
     public void initialize() {
@@ -146,12 +142,7 @@ public class DataInitializer {
         
         dayKLineDao.saveBatch(dayKLines);
         System.out.println("生成 " + stock.getStockName() + " 的日K线数据: " + dayKLines.size() + " 条");
-        
-        // 生成周K线
-        generateWeekKLines(stock, dayKLines);
-        
-        // 生成月K线
-        generateMonthKLines(stock, dayKLines);
+
         
         // 更新股票的上一个交易日
         if (!dayKLines.isEmpty()) {
@@ -161,91 +152,7 @@ public class DataInitializer {
             stockDao.update(stock);
         }
     }
-    
-    private void generateWeekKLines(Stock stock, List<DayKLine> dayKLines) throws SQLException {
-        List<WeekKLine> weekKLines = new ArrayList<>();
-        
-        int weekStartIndex = 0;
-        for (int i = 0; i < dayKLines.size(); i++) {
-            LocalDate date = dayKLines.get(i).getTradeDate();
-            if (date.getDayOfWeek().getValue() == 5 || i == dayKLines.size() - 1) {
-                // 周五或最后一天，生成周K线
-                List<DayKLine> weekDays = dayKLines.subList(weekStartIndex, i + 1);
-                if (!weekDays.isEmpty()) {
-                    WeekKLine weekKLine = new WeekKLine();
-                    weekKLine.setStockId(stock.getId());
-                    weekKLine.setWeekStart(weekDays.get(0).getTradeDate());
-                    weekKLine.setWeekEnd(weekDays.get(weekDays.size() - 1).getTradeDate());
-                    weekKLine.setOpen(weekDays.get(0).getOpen());
-                    weekKLine.setClose(weekDays.get(weekDays.size() - 1).getClose());
-                    
-                    BigDecimal high = weekDays.get(0).getHigh();
-                    BigDecimal low = weekDays.get(0).getLow();
-                    long volume = 0;
-                    for (DayKLine day : weekDays) {
-                        if (day.getHigh().compareTo(high) > 0) high = day.getHigh();
-                        if (day.getLow().compareTo(low) < 0) low = day.getLow();
-                        volume += day.getVolume();
-                    }
-                    weekKLine.setHigh(high);
-                    weekKLine.setLow(low);
-                    weekKLine.setVolume(volume);
-                    
-                    weekKLines.add(weekKLine);
-                }
-                weekStartIndex = i + 1;
-            }
-        }
-        
-        for (WeekKLine weekKLine : weekKLines) {
-            weekKLineDao.save(weekKLine);
-        }
-        System.out.println("生成 " + stock.getStockName() + " 的周K线数据: " + weekKLines.size() + " 条");
-    }
-    
-    private void generateMonthKLines(Stock stock, List<DayKLine> dayKLines) throws SQLException {
-        List<MonthKLine> monthKLines = new ArrayList<>();
-        
-        int monthStartIndex = 0;
-        int currentMonth = dayKLines.get(0).getTradeDate().getMonthValue();
-        
-        for (int i = 0; i < dayKLines.size(); i++) {
-            int month = dayKLines.get(i).getTradeDate().getMonthValue();
-            if (month != currentMonth || i == dayKLines.size() - 1) {
-                // 新月或最后一天，生成月K线
-                List<DayKLine> monthDays = dayKLines.subList(monthStartIndex, 
-                        (i == dayKLines.size() - 1 && month == currentMonth) ? i + 1 : i);
-                if (!monthDays.isEmpty()) {
-                    MonthKLine monthKLine = new MonthKLine();
-                    monthKLine.setStockId(stock.getId());
-                    monthKLine.setMonthStart(monthDays.get(0).getTradeDate());
-                    monthKLine.setMonthEnd(monthDays.get(monthDays.size() - 1).getTradeDate());
-                    monthKLine.setOpen(monthDays.get(0).getOpen());
-                    monthKLine.setClose(monthDays.get(monthDays.size() - 1).getClose());
-                    
-                    BigDecimal high = monthDays.get(0).getHigh();
-                    BigDecimal low = monthDays.get(0).getLow();
-                    long volume = 0;
-                    for (DayKLine day : monthDays) {
-                        if (day.getHigh().compareTo(high) > 0) high = day.getHigh();
-                        if (day.getLow().compareTo(low) < 0) low = day.getLow();
-                        volume += day.getVolume();
-                    }
-                    monthKLine.setHigh(high);
-                    monthKLine.setLow(low);
-                    monthKLine.setVolume(volume);
-                    
-                    monthKLineDao.save(monthKLine);
-                    monthKLines.add(monthKLine);
-                }
-                monthStartIndex = i;
-                currentMonth = month;
-            }
-        }
-        
-        System.out.println("生成 " + stock.getStockName() + " 的月K线数据: " + monthKLines.size() + " 条");
-    }
-    
+
     public static void main(String[] args) {
         DataInitializer initializer = new DataInitializer();
         initializer.initialize();

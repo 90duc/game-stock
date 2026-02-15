@@ -4,7 +4,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
-public class MonthKLine {
+public class MonthKLine implements KLine<MonthKLine> {
     private Long id;
     private Long stockId;
     private LocalDate monthStart;
@@ -53,4 +53,26 @@ public class MonthKLine {
     
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
+    
+    @Override
+    public String getLabel() {
+        return monthEnd != null ? monthEnd.toString() : "";
+    }
+    
+    @Override
+    public boolean hasOHLC() {
+        return true;
+    }
+    
+    @Override
+    public int compareTo(MonthKLine other) {
+        if (monthEnd != null && other.monthEnd != null) {
+            int cmp = monthEnd.compareTo(other.monthEnd);
+            if (cmp != 0) return cmp;
+        }
+        if (id != null && other.id != null) {
+            return id.compareTo(other.id);
+        }
+        return 0;
+    }
 }

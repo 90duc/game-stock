@@ -580,6 +580,108 @@ public class StockTradingService {
         return dayKLineDao.getByStockId(stockId, limit);
     }
     
+    public List<WeekKLine> getWeekKLines(Long stockId, int limit) throws SQLException {
+        List<DayKLine> dayKLines = dayKLineDao.getByStockId(stockId, 365);
+        return aggregateToWeekKLine(dayKLines, limit);
+    }
+    
+    public List<MonthKLine> getMonthKLines(Long stockId, int limit) throws SQLException {
+        List<DayKLine> dayKLines = dayKLineDao.getByStockId(stockId, 365);
+        return aggregateToMonthKLine(dayKLines, limit);
+    }
+    
+    private List<WeekKLine> aggregateToWeekKLine(List<DayKLine> dayKLines, int limit) {
+        if (dayKLines == null || dayKLines.isEmpty()) {
+            return Collections.emptyList();
+        }
+        
+        List<WeekKLine> weekKLines = new ArrayList<>();
+        Map<Integer, List<DayKLine>> weekGroups = new LinkedHashMap<>();
+        
+        for (DayKLine day : dayKLines) {
+            LocalDate date = day.getTradeDate();
+            if (date == null) continue;
+            int weekKey = date.getYear() * 100 + date.getDayOfYear() / 7;
+            weekGroups.computeIfAbsent(weekKey, k -> new ArrayList<>()).add(day);
+        }
+        
+        for (List<DayKLine> group : weekGroups.values()) {
+            if (group.isEmpty()) continue;
+            Collections.sort(group, Comparator.comparing(DayKLine::getTradeDate));
+            
+            WeekKLine week = new WeekKLine();
+            week.setStockId(group.get(0).getStockId());
+            week.setWeekStart(group.get(0).getTradeDate());
+            week.setWeekEnd(group.get(group.size() - 1).getTradeDate());
+            week.setOpen(group.get(0).getOpen());
+            week.setClose(group.get(group.size() - 1).getClose());
+            
+            BigDecimal high = group.stream()
+                .map(DayKLine::getHigh)
+                .max(BigDecimal::compareTo)
+                .orElse(BigDecimal.ZERO);
+            week.setHigh(high);
+            
+            BigDecimal low = group.stream()
+                .map(DayKLine::getLow)
+                .min(BigDecimal::compareTo)
+                .orElse(BigDecimal.ZERO);
+            week.setLow(low);
+            
+            week.setVolume(group.stream().mapToLong(DayKLine::getVolume).sum());
+            weekKLines.add(week);
+        }
+        
+        Collections.reverse(weekKLines);
+        return weekKLines.stream().limit(limit).collect(java.util.stream.Collectors.toList());
+    }
+    
+    private List<MonthKLine> aggregateToMonthKLine(List<DayKLine> dayKLines, int limit) {
+        if (dayKLines == null || dayKLines.isEmpty()) {
+            return Collections.emptyList();
+        }
+        
+        List<MonthKLine> monthKLines = new ArrayList<>();
+        Map<Integer, List<DayKLine>> monthGroups = new LinkedHashMap<>();
+        
+        for (DayKLine day : dayKLines) {
+            LocalDate date = day.getTradeDate();
+            if (date == null) continue;
+            int monthKey = date.getYear() * 100 + date.getMonthValue();
+            monthGroups.computeIfAbsent(monthKey, k -> new ArrayList<>()).add(day);
+        }
+        
+        for (List<DayKLine> group : monthGroups.values()) {
+            if (group.isEmpty()) continue;
+            Collections.sort(group, Comparator.comparing(DayKLine::getTradeDate));
+            
+            MonthKLine month = new MonthKLine();
+            month.setStockId(group.get(0).getStockId());
+            month.setMonthStart(group.get(0).getTradeDate());
+            month.setMonthEnd(group.get(group.size() - 1).getTradeDate());
+            month.setOpen(group.get(0).getOpen());
+            month.setClose(group.get(group.size() - 1).getClose());
+            
+            BigDecimal high = group.stream()
+                .map(DayKLine::getHigh)
+                .max(BigDecimal::compareTo)
+                .orElse(BigDecimal.ZERO);
+            month.setHigh(high);
+            
+            BigDecimal low = group.stream()
+                .map(DayKLine::getLow)
+                .min(BigDecimal::compareTo)
+                .orElse(BigDecimal.ZERO);
+            month.setLow(low);
+            
+            month.setVolume(group.stream().mapToLong(DayKLine::getVolume).sum());
+            monthKLines.add(month);
+        }
+        
+        Collections.reverse(monthKLines);
+        return monthKLines.stream().limit(limit).collect(java.util.stream.Collectors.toList());
+    }
+    
     public List<IntradayKLine> getIntradayKLines(Long stockId, Long sessionId) throws SQLException {
         return intradayKLineDao.getByStockAndSession(stockId, sessionId);
     }

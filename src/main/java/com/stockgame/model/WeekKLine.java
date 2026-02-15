@@ -4,7 +4,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
-public class WeekKLine {
+public class WeekKLine implements KLine<WeekKLine> {
     private Long id;
     private Long stockId;
     private LocalDate weekStart;
@@ -53,4 +53,26 @@ public class WeekKLine {
     
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
+    
+    @Override
+    public String getLabel() {
+        return weekEnd != null ? weekEnd.toString() : "";
+    }
+    
+    @Override
+    public boolean hasOHLC() {
+        return true;
+    }
+    
+    @Override
+    public int compareTo(WeekKLine other) {
+        if (weekEnd != null && other.weekEnd != null) {
+            int cmp = weekEnd.compareTo(other.weekEnd);
+            if (cmp != 0) return cmp;
+        }
+        if (id != null && other.id != null) {
+            return id.compareTo(other.id);
+        }
+        return 0;
+    }
 }
