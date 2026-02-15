@@ -20,6 +20,7 @@ import javafx.stage.Window;
 import java.math.BigDecimal;
 import java.sql.SQLException;
 import java.util.List;
+import java.util.Optional;
 
 public class TradeView {
     private final StockTradingService tradingService;
@@ -1113,23 +1114,23 @@ public class TradeView {
         
         TableColumn<Order, String> typeCol = new TableColumn<>("类型");
         typeCol.setCellValueFactory(data -> new SimpleStringProperty(
-                data.getValue().getOrderType().name()));
+                Optional.ofNullable(data.getValue()).map(Order::getOrderType).map(Order.OrderType::getText).orElse("")));
         
         TableColumn<Order, String> priceTypeCol = new TableColumn<>("价格类型");
         priceTypeCol.setCellValueFactory(data -> new SimpleStringProperty(
-                data.getValue().getPriceType().name()));
+                Optional.ofNullable(data.getValue()).map(Order::getPriceType).map(Order.OrderPriceType::getText).orElse("")));
         
         TableColumn<Order, String> priceCol = new TableColumn<>("价格");
         priceCol.setCellValueFactory(data -> new SimpleStringProperty(
-                data.getValue().getPrice().toString()));
+                Optional.ofNullable(data.getValue()).map(Order::getPrice).map(BigDecimal::toString).orElse("")));
         
         TableColumn<Order, String> qtyCol = new TableColumn<>("数量");
         qtyCol.setCellValueFactory(data -> new SimpleStringProperty(
-                String.valueOf(data.getValue().getQuantity())));
+                Optional.ofNullable(data.getValue()).map(Order::getQuantity).map(String::valueOf).orElse("")));
         
         TableColumn<Order, String> statusCol = new TableColumn<>("状态");
         statusCol.setCellValueFactory(data -> new SimpleStringProperty(
-                data.getValue().getStatus().name()));
+                Optional.ofNullable(data.getValue()).map(Order::getStatus).map(Order.OrderStatus::getText).orElse("")));
         
         orderTable.getColumns().addAll(typeCol, priceTypeCol, priceCol, qtyCol, statusCol);
         

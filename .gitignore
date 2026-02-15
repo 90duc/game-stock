@@ -5,4 +5,6 @@
 /.idea/
 *.iml
 /stock_game.db
+/stock_game.db-shm
+/stock_game.db-wal
 *.class

@@ -5,15 +5,27 @@ import java.time.LocalDateTime;
 
 public class Order {
     public enum OrderType {
-        BUY, SELL
+        BUY("买入"), SELL("卖出");
+        
+        private final String text;
+        OrderType(String text) { this.text = text; }
+        public String getText() { return text; }
     }
     
     public enum OrderPriceType {
-        LIMIT, MARKET
+        LIMIT("限价"), MARKET("市价");
+        
+        private final String text;
+        OrderPriceType(String text) { this.text = text; }
+        public String getText() { return text; }
     }
     
     public enum OrderStatus {
-        PENDING, FILLED, CANCELLED, EXPIRED
+        PENDING("挂单中"), FILLED("已成交"), CANCELLED("已撤销"), EXPIRED("已过期");
+        
+        private final String text;
+        OrderStatus(String text) { this.text = text; }
+        public String getText() { return text; }
     }
     
     private Long id;

@@ -8,8 +8,10 @@ import javafx.geometry.Insets;
 import javafx.scene.control.*;
 import javafx.scene.layout.*;
 
+import java.math.BigDecimal;
 import java.sql.SQLException;
 import java.util.List;
+import java.util.Optional;
 
 public class AccountView {
     private final StockTradingService tradingService;
@@ -126,27 +128,27 @@ public class AccountView {
         
         TableColumn<TradeRecord, String> tradeTimeCol = new TableColumn<>("成交时间");
         tradeTimeCol.setCellValueFactory(data -> new SimpleStringProperty(
-                data.getValue().getTradeTime().toString()));
+                Optional.ofNullable(data.getValue()).map(TradeRecord::getTradeTime).map(Object::toString).orElse("")));
         
         TableColumn<TradeRecord, String> tradeStockCol = new TableColumn<>("股票");
         tradeStockCol.setCellValueFactory(data -> new SimpleStringProperty(
-                data.getValue().getStockName()));
+                Optional.ofNullable(data.getValue()).map(TradeRecord::getStockName).orElse("")));
         
         TableColumn<TradeRecord, String> tradeTypeCol = new TableColumn<>("类型");
         tradeTypeCol.setCellValueFactory(data -> new SimpleStringProperty(
-                data.getValue().getTradeType().name()));
+                Optional.ofNullable(data.getValue()).map(TradeRecord::getTradeType).map(Order.OrderType::getText).orElse("")));
         
         TableColumn<TradeRecord, String> tradePriceCol = new TableColumn<>("成交价格");
         tradePriceCol.setCellValueFactory(data -> new SimpleStringProperty(
-                data.getValue().getPrice().toString()));
+                Optional.ofNullable(data.getValue()).map(TradeRecord::getPrice).map(BigDecimal::toString).orElse("")));
         
         TableColumn<TradeRecord, String> tradeQtyCol = new TableColumn<>("成交数量");
         tradeQtyCol.setCellValueFactory(data -> new SimpleStringProperty(
-                String.valueOf(data.getValue().getQuantity())));
+                Optional.ofNullable(data.getValue()).map(TradeRecord::getQuantity).map(String::valueOf).orElse("")));
         
         TableColumn<TradeRecord, String> tradeAmountCol = new TableColumn<>("成交金额");
         tradeAmountCol.setCellValueFactory(data -> new SimpleStringProperty(
-                data.getValue().getTotalAmount().toString()));
+                Optional.ofNullable(data.getValue()).map(TradeRecord::getTotalAmount).map(BigDecimal::toString).orElse("")));
         
         table.getColumns().addAll(tradeTimeCol, tradeStockCol, tradeTypeCol, 
                 tradePriceCol, tradeQtyCol, tradeAmountCol);
@@ -160,27 +162,27 @@ public class AccountView {
         
         TableColumn<Order, String> orderTimeCol = new TableColumn<>("挂单时间");
         orderTimeCol.setCellValueFactory(data -> new SimpleStringProperty(
-                data.getValue().getCreatedAt().toString()));
+                Optional.ofNullable(data.getValue()).map(Order::getCreatedAt).map(Object::toString).orElse("")));
         
         TableColumn<Order, String> orderTypeCol = new TableColumn<>("类型");
         orderTypeCol.setCellValueFactory(data -> new SimpleStringProperty(
-                data.getValue().getOrderType().name()));
+                Optional.ofNullable(data.getValue()).map(Order::getOrderType).map(Order.OrderType::getText).orElse("")));
         
         TableColumn<Order, String> orderPriceCol = new TableColumn<>("委托价格");
         orderPriceCol.setCellValueFactory(data -> new SimpleStringProperty(
-                data.getValue().getPrice().toString()));
+                Optional.ofNullable(data.getValue()).map(Order::getPrice).map(BigDecimal::toString).orElse("")));
         
         TableColumn<Order, String> orderQtyCol = new TableColumn<>("委托数量");
         orderQtyCol.setCellValueFactory(data -> new SimpleStringProperty(
-                String.valueOf(data.getValue().getQuantity())));
+                Optional.ofNullable(data.getValue()).map(Order::getQuantity).map(String::valueOf).orElse("")));
         
         TableColumn<Order, String> filledQtyCol = new TableColumn<>("成交数量");
         filledQtyCol.setCellValueFactory(data -> new SimpleStringProperty(
-                String.valueOf(data.getValue().getFilledQuantity())));
+                Optional.ofNullable(data.getValue()).map(Order::getFilledQuantity).map(String::valueOf).orElse("")));
         
         TableColumn<Order, String> orderStatusCol = new TableColumn<>("状态");
         orderStatusCol.setCellValueFactory(data -> new SimpleStringProperty(
-                data.getValue().getStatus().name()));
+                Optional.ofNullable(data.getValue()).map(Order::getStatus).map(Order.OrderStatus::getText).orElse("")));
         
         table.getColumns().addAll(orderTimeCol, orderTypeCol, orderPriceCol, 
                 orderQtyCol, filledQtyCol, orderStatusCol);
