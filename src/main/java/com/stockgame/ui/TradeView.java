@@ -397,23 +397,43 @@ public class TradeView {
         String changeStr = String.format("%.2f%%", changePercent);
         String changeColor = change.compareTo(BigDecimal.ZERO) >= 0 ? "#ff3333" : "#00A000";
         
-        javafx.scene.text.Text priceText = new javafx.scene.text.Text("当前价格:");
-        priceText.setFill(javafx.scene.paint.Color.BLACK);
-        javafx.scene.text.Text priceValue = new javafx.scene.text.Text(currentPrice.toString());
-        priceValue.setFill(javafx.scene.paint.Color.web(changeColor));
-        javafx.scene.text.Text openParen = new javafx.scene.text.Text("(");
-        openParen.setFill(javafx.scene.paint.Color.BLACK);
-        javafx.scene.text.Text changeValue = new javafx.scene.text.Text(changeStr);
-        changeValue.setFill(javafx.scene.paint.Color.web(changeColor));
-        javafx.scene.text.Text closeParen = new javafx.scene.text.Text(")");
-        closeParen.setFill(javafx.scene.paint.Color.BLACK);
-        javafx.scene.text.Text openText = new javafx.scene.text.Text("    开盘价:");
-        openText.setFill(javafx.scene.paint.Color.BLACK);
-        javafx.scene.text.Text openValue = new javafx.scene.text.Text(openPrice.toString());
-        openValue.setFill(javafx.scene.paint.Color.BLACK);
+        // 左侧部分：当前价格和涨跌幅，固定100px宽度
+        javafx.scene.text.TextFlow leftFlow = new javafx.scene.text.TextFlow();
         
-        javafx.scene.text.TextFlow flow = new javafx.scene.text.TextFlow(priceText, priceValue, openParen, changeValue, closeParen, openText, openValue);
-        priceLabel.setGraphic(flow);
+        javafx.scene.text.Text t1 = new javafx.scene.text.Text("当前价格: ");
+        t1.setFill(javafx.scene.paint.Color.BLACK);
+        
+        javafx.scene.text.Text t2 = new javafx.scene.text.Text(currentPrice.toString());
+        t2.setFill(javafx.scene.paint.Color.web(changeColor));
+        
+        javafx.scene.text.Text t3 = new javafx.scene.text.Text("(");
+        t3.setFill(javafx.scene.paint.Color.BLACK);
+        
+        javafx.scene.text.Text t4 = new javafx.scene.text.Text(changeStr);
+        t4.setFill(javafx.scene.paint.Color.web(changeColor));
+        
+        javafx.scene.text.Text t5 = new javafx.scene.text.Text(")");
+        t5.setFill(javafx.scene.paint.Color.BLACK);
+        
+        leftFlow.getChildren().addAll(t1, t2, t3, t4, t5);
+        leftFlow.setPrefWidth(180);
+        
+        // 右侧：开盘价
+        javafx.scene.text.TextFlow rightFlow = new javafx.scene.text.TextFlow();
+        
+        javafx.scene.text.Text t6 = new javafx.scene.text.Text("开盘价:");
+        t6.setFill(javafx.scene.paint.Color.BLACK);
+        
+        javafx.scene.text.Text t7 = new javafx.scene.text.Text(openPrice.toString());
+        t7.setFill(javafx.scene.paint.Color.BLACK);
+        
+        rightFlow.getChildren().addAll(t6, t7);
+        
+        // 用HBox组合左右两部分
+        HBox container = new HBox(0);
+        container.getChildren().addAll(leftFlow, rightFlow);
+        
+        priceLabel.setGraphic(container);
     }
     
     public void refresh() throws SQLException {
@@ -680,10 +700,9 @@ public class TradeView {
             gc.strokeLine(LEFT_MARGIN, yLast, canvasWidth - RIGHT_MARGIN, yLast);
             gc.setLineDashes();
             
-            // 数值显示在最后一个蜡烛的右侧
+            // 数值显示在纵坐标左边，与刻度对齐
             gc.setFill(Color.YELLOW);
-            double priceYOffset = (lastPrice >= openPrice) ? -10 : 18;
-            gc.fillText(String.format("%.2f", lastPrice), lastX + PIXELS_PER_UNIT / 2 + 5, (int)yLast + priceYOffset);
+            gc.fillText(String.format("%.2f", lastPrice), 5, yLast + 4);
         }
     }
     
