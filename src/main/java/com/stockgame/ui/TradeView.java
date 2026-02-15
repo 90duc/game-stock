@@ -612,15 +612,15 @@ public class TradeView {
         // 计算开盘价的Y坐标（应该在图表正中间）
         double yOpen = TOP_MARGIN + (yAxisMax - openPrice) / yAxisRange * DRAW_HEIGHT;
         
-        // 绘制背景网格和坐标轴
-        drawGridWithOpenPrice(gc, LEFT_MARGIN, TOP_MARGIN, DRAW_WIDTH, DRAW_HEIGHT, BOTTOM_MARGIN,
-                yAxisMin, yAxisMax, yAxisRange, openPrice, yOpen, kLines, klineInterval, canvasWidth);
-        
         // 计算显示范围 - 根据滚动条位置计算起始X坐标
         double totalWidth = kLines.size() * PIXELS_PER_UNIT;
         double maxScrollVal = Math.max(0, totalWidth - DRAW_WIDTH + RIGHT_CANDLE_GAP);
         
         double scrollValue = klineScrollBar != null ? klineScrollBar.getValue() : maxScrollVal;
+        
+        // 绘制背景网格和坐标轴
+        drawGridWithOpenPrice(gc, LEFT_MARGIN, TOP_MARGIN, DRAW_WIDTH, DRAW_HEIGHT, BOTTOM_MARGIN,
+                yAxisMin, yAxisMax, yAxisRange, openPrice, yOpen, kLines, klineInterval, canvasWidth, scrollValue, maxScrollVal);
         
         double startX;
         if (totalWidth <= DRAW_WIDTH - RIGHT_CANDLE_GAP) {
@@ -777,7 +777,8 @@ public class TradeView {
     // 绘制背景网格和开盘线（开盘线固定在中间）
     private void drawGridWithOpenPrice(GraphicsContext gc, double left, double top, double width, double height,
                                        double bottomMargin, double minPrice, double maxPrice, double priceRange,
-                                       double openPrice, double yOpen, List<IntradayKLine> kLines, int intervalSeconds, double canvasWidth) {
+                                       double openPrice, double yOpen, List<IntradayKLine> kLines, int intervalSeconds, 
+                                       double canvasWidth, double scrollValue, double maxScrollVal) {
         gc.setStroke(Color.web("#1f1f1f"));
         gc.setLineWidth(0.5);
         
@@ -818,13 +819,13 @@ public class TradeView {
         int timeLabelInterval = 10;
         double pixelsPerUnit = 8.0;
         double totalWidth = kLines.size() * pixelsPerUnit;
+        double rightGap = maxScrollVal > 0 ? pixelsPerUnit * 4 : 0;
+        
         double startX;
-        if (totalWidth <= width) {
-            // 数据不足以填满图表，从左边开始
+        if (totalWidth <= width - rightGap) {
             startX = left;
         } else {
-            // 数据超出图表范围，显示最新的部分（右侧）
-            startX = left + width - totalWidth;
+            startX = left - scrollValue;
         }
         
         for (int i = 0; i < kLines.size(); i += timeLabelInterval) {
