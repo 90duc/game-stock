@@ -325,7 +325,7 @@ public class StockTradingService {
     
     // 匹配挂单
     private void matchOrders(Long stockId, BigDecimal currentPrice, Long sessionId) throws SQLException {
-        List<Order> pendingOrders = orderDao.getPendingOrdersByStock(stockId);
+        List<Order> pendingOrders = orderDao.getPendingOrdersByStock(stockId, sessionId);
         
         for (Order order : pendingOrders) {
             if (order.getOrderType() == Order.OrderType.BUY) {
@@ -371,14 +371,9 @@ public class StockTradingService {
         Stock stock = stockDao.getById(order.getStockId());
         
         if (order.getOrderType() == Order.OrderType.BUY) {
-            // 买入
-            if (user.getAvailableBalance().compareTo(totalCost) < 0) {
-                return; // 资金不足
-            }
-            
-            // 扣除资金(成交金额 + 手续费)
-            user.setBalance(user.getBalance().subtract(totalCost));
+            // 买入 - 下单时已冻结资金，直接扣减
             user.setFrozenBalance(user.getFrozenBalance().subtract(order.getFrozenAmount()));
+            user.setBalance(user.getBalance().subtract(totalCost));
             userDao.update(user);
             
             // 增加持仓

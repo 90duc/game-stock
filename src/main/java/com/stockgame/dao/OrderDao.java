@@ -10,12 +10,13 @@ import java.util.List;
 
 public class OrderDao {
     
-    public List<Order> getPendingOrdersByStock(Long stockId) throws SQLException {
+    public List<Order> getPendingOrdersByStock(Long stockId, Long gameSessionId) throws SQLException {
         List<Order> orders = new ArrayList<>();
-        String sql = "SELECT * FROM orders WHERE stock_id = ? AND status = 'PENDING' ORDER BY created_at";
+        String sql = "SELECT * FROM orders WHERE stock_id = ? AND game_session_id = ? AND status = 'PENDING' ORDER BY created_at";
         try (Connection conn = DatabaseUtil.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setLong(1, stockId);
+            stmt.setLong(2, gameSessionId);
             ResultSet rs = stmt.executeQuery();
             while (rs.next()) {
                 orders.add(mapResultSet(rs));
