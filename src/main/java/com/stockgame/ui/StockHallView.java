@@ -15,7 +15,9 @@ import javafx.stage.Stage;
 
 import java.math.BigDecimal;
 import java.sql.SQLException;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public class StockHallView {
     private final StockTradingService tradingService;
@@ -23,6 +25,7 @@ public class StockHallView {
     private final VBox view;
     private TableView<Stock> stockTable;
     private Label statusLabel;
+    private final Map<Long, Stage> tradeStages = new HashMap<>();
     
     public StockHallView(StockTradingService tradingService, User currentUser) {
         this.tradingService = tradingService;
@@ -41,6 +44,8 @@ public class StockHallView {
         // 股票列表
         stockTable = new TableView<>();
         stockTable.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
+        stockTable.setStyle("-fx-focus-color: transparent; -fx-faint-focus-color: transparent;");
+        stockTable.setSelectionModel(null);
         
         TableColumn<Stock, String> codeCol = new TableColumn<>("股票代码");
         codeCol.setCellValueFactory(data -> new SimpleStringProperty(data.getValue().getStockCode()));
@@ -199,6 +204,13 @@ public class StockHallView {
     }
     
     private void openTradeViewForStock(Stock stock) {
+        // 检查窗口是否已存在，存在则置顶
+        Stage existingStage = tradeStages.get(stock.getId());
+        if (existingStage != null) {
+            existingStage.toFront();
+            return;
+        }
+
         try {
             // 刷新股票数据，确保获取最新状态
             Stock updatedStock = tradingService.getStockById(stock.getId());
@@ -208,6 +220,10 @@ public class StockHallView {
             Stage stage = new Stage();
             stage.setTitle(updatedStock.getStockName() + " - 交易");
             stage.setScene(new Scene(tradeView.getView(), 800, 600));
+            
+            stage.setOnCloseRequest(e -> tradeStages.remove(stock.getId()));
+            tradeStages.put(stock.getId(), stage);
+            
             stage.show();
         } catch (SQLException e) {
             showAlert("打开交易界面失败: " + e.getMessage());

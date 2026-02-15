@@ -294,8 +294,8 @@ public class StockTradingService {
                 .setScale(2, RoundingMode.HALF_UP);
         
         // 确保价格在涨跌停范围内
-        BigDecimal maxPrice = basePrice.multiply(BigDecimal.ONE.add(PRICE_LIMIT));
-        BigDecimal minPrice = basePrice.multiply(BigDecimal.ONE.subtract(PRICE_LIMIT));
+        BigDecimal maxPrice = basePrice.multiply(BigDecimal.ONE.add(PRICE_LIMIT)).setScale(2, RoundingMode.UP);
+        BigDecimal minPrice = basePrice.multiply(BigDecimal.ONE.subtract(PRICE_LIMIT)).setScale(2, RoundingMode.UP);
         
         if (newPrice.compareTo(maxPrice) > 0) {
             newPrice = maxPrice;
@@ -456,8 +456,8 @@ public class StockTradingService {
         
         // 验证价格范围
         BigDecimal basePrice = stock.getPreviousClose();
-        BigDecimal maxPrice = basePrice.multiply(BigDecimal.ONE.add(PRICE_LIMIT));
-        BigDecimal minPrice = basePrice.multiply(BigDecimal.ONE.subtract(PRICE_LIMIT));
+        BigDecimal maxPrice = basePrice.multiply(BigDecimal.ONE.add(PRICE_LIMIT)).setScale(2, RoundingMode.UP);
+        BigDecimal minPrice = basePrice.multiply(BigDecimal.ONE.subtract(PRICE_LIMIT)).setScale(2, RoundingMode.UP);
         
         if (priceType == Order.OrderPriceType.LIMIT) {
             if (price.compareTo(maxPrice) > 0 || price.compareTo(minPrice) < 0) {

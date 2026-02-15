@@ -403,7 +403,7 @@ public class TradeView {
         javafx.scene.text.Text t1 = new javafx.scene.text.Text("当前价格: ");
         t1.setFill(javafx.scene.paint.Color.BLACK);
         
-        javafx.scene.text.Text t2 = new javafx.scene.text.Text(currentPrice.toString());
+        javafx.scene.text.Text t2 = new javafx.scene.text.Text(String.format("%.2f", currentPrice));
         t2.setFill(javafx.scene.paint.Color.web(changeColor));
         
         javafx.scene.text.Text t3 = new javafx.scene.text.Text("(");
