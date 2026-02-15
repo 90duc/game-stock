@@ -201,11 +201,7 @@ public class StockHallView {
     private void openTradeViewForStock(Stock stock) {
         try {
             // 刷新股票数据，确保获取最新状态
-            List<Stock> stocks = tradingService.getAllStocks();
-            Stock updatedStock = stocks.stream()
-                    .filter(s -> s.getId().equals(stock.getId()))
-                    .findFirst()
-                    .orElse(stock);
+            Stock updatedStock = tradingService.getStockById(stock.getId());
             
             boolean showAsEnded = !updatedStock.getIsTrading();
             TradeView tradeView = new TradeView(tradingService, currentUser, updatedStock, showAsEnded);

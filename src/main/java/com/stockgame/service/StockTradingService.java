@@ -556,6 +556,10 @@ public class StockTradingService {
         return stockDao.getAll();
     }
     
+    public Stock getStockById(Long id) throws SQLException {
+        return stockDao.getById(id);
+    }
+    
     public List<Order> getUserOrders(Long userId) throws SQLException {
         return orderDao.getByUserId(userId);
     }

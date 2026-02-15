@@ -5,6 +5,7 @@ import com.stockgame.service.StockTradingService;
 import javafx.application.Platform;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.geometry.Insets;
+import javafx.geometry.Orientation;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
 import javafx.scene.canvas.Canvas;
@@ -26,6 +27,9 @@ public class TradeView {
     private VBox view;
     private Canvas candlestickChart;
     private Pane chartContainer;
+    private ScrollBar klineScrollBar;
+    private boolean userScrollingKline = false;
+    private boolean updatingScrollBar = false;
     private TableView<Order> orderTable;
     private Label priceLabel;
     private Button startEndGameBtn; // 开始/结束游戏按钮
@@ -60,12 +64,7 @@ public class TradeView {
                     System.out.println("游戏已超时，自动结束...");
                     tradingService.endGame(stock.getId());
                     // 重新获取更新后的股票状态
-                    List<Stock> stocks = tradingService.getAllStocks();
-                    for (Stock s : stocks) {
-                        if (s.getId().equals(stock.getId())) {
-                            return s;
-                        }
-                    }
+                    return tradingService.getStockById(stock.getId());
                 }
             } catch (SQLException e) {
                 e.printStackTrace();
@@ -83,6 +82,7 @@ public class TradeView {
         btn.setOnAction(e -> {
             if (btn.isSelected()) {
                 klineInterval = interval;
+                userScrollingKline = false;
                 try {
                     updateCandlestickChart();
                 } catch (SQLException ex) {
@@ -309,7 +309,7 @@ public class TradeView {
         root.setAlignment(Pos.CENTER);
         
         Label titleLabel = new Label("卖出委托");
-        titleLabel.setStyle("-fx-font-size: 20px; -fx-font-weight: bold; -fx-text-fill: #33ff33;");
+        titleLabel.setStyle("-fx-font-size: 20px; -fx-font-weight: bold; -fx-text-fill: #00A000;");
         
         ToggleGroup typeGroup = new ToggleGroup();
         RadioButton limitBtn = new RadioButton("限价");
@@ -343,7 +343,7 @@ public class TradeView {
         btnBox.setAlignment(Pos.CENTER);
         Button submitBtn = new Button("提交");
         submitBtn.setPrefWidth(80);
-        submitBtn.setStyle("-fx-background-color: #33ff33; -fx-text-fill: white; -fx-font-weight: bold;");
+        submitBtn.setStyle("-fx-background-color: #00A000; -fx-text-fill: white; -fx-font-weight: bold;");
         Button cancelBtn = new Button("取消");
         cancelBtn.setPrefWidth(80);
         submitBtn.setOnAction(e -> {
@@ -395,7 +395,7 @@ public class TradeView {
         BigDecimal change = currentPrice.subtract(openPrice);
         BigDecimal changePercent = change.divide(openPrice, 4, BigDecimal.ROUND_HALF_UP).multiply(BigDecimal.valueOf(100));
         String changeStr = String.format("%.2f%%", changePercent);
-        String changeColor = change.compareTo(BigDecimal.ZERO) >= 0 ? "#ff3333" : "#33ff33";
+        String changeColor = change.compareTo(BigDecimal.ZERO) >= 0 ? "#ff3333" : "#00A000";
         
         javafx.scene.text.Text priceText = new javafx.scene.text.Text("当前价格:");
         priceText.setFill(javafx.scene.paint.Color.BLACK);
@@ -423,10 +423,7 @@ public class TradeView {
         }
         
         // 更新价格
-        Stock updatedStock = tradingService.getAllStocks().stream()
-                .filter(s -> s.getId().equals(stock.getId()))
-                .findFirst()
-                .orElse(stock);
+        Stock updatedStock = tradingService.getStockById(stock.getId());
         
         updatePriceLabel(updatedStock);
         
@@ -463,6 +460,32 @@ public class TradeView {
         List<IntradayKLine> kLines = tradingService.getAllIntradayKLines(stock.getId());
         // 根据klineInterval聚合数据
         List<IntradayKLine> aggregatedKLines = aggregateKLines(kLines, klineInterval);
+        
+        // 更新滚动条范围
+        if (klineScrollBar != null && candlestickChart != null) {
+            double totalWidth = aggregatedKLines.size() * 8.0;
+            double drawWidth = candlestickChart.getWidth() - 60 - 15;
+            double rightGap = 8.0 * 4;
+            double maxScroll = Math.max(0, totalWidth - drawWidth + rightGap);
+            
+            if (maxScroll > 0) {
+                updatingScrollBar = true;
+                klineScrollBar.setMax(maxScroll);
+                klineScrollBar.setVisibleAmount(50);
+                klineScrollBar.setDisable(false);
+                klineScrollBar.setVisible(true);
+                
+                // 如果用户没有手动拖动，始终保持在最右侧
+                if (!userScrollingKline) {
+                    klineScrollBar.setValue(maxScroll);
+                }
+                updatingScrollBar = false;
+            } else {
+                klineScrollBar.setVisible(false);
+                klineScrollBar.setMax(0);
+                userScrollingKline = false;
+            }
+        }
         
         drawCandlestickChart(aggregatedKLines);
     }
@@ -547,9 +570,16 @@ public class TradeView {
         final double TOP_MARGIN = 15;
         final double BOTTOM_MARGIN = 25;
         final double PIXELS_PER_UNIT = 8.0;
-        // 最新蜡烛条右边保留4个蜡烛条宽度
-        final double RIGHT_CANDLE_GAP = PIXELS_PER_UNIT * 4;
         final double DRAW_WIDTH = canvasWidth - LEFT_MARGIN - RIGHT_MARGIN;
+        // 最新蜡烛条右边保留4个蜡烛条宽度（仅在滚动到最右侧时）
+        double maxScrollForGap = Math.max(0, kLines.size() * PIXELS_PER_UNIT - DRAW_WIDTH);
+        double currentScroll = klineScrollBar != null ? klineScrollBar.getValue() : 0;
+        final double RIGHT_CANDLE_GAP;
+        if (maxScrollForGap > 0 && Math.abs(currentScroll - maxScrollForGap) < 1) {
+            RIGHT_CANDLE_GAP = PIXELS_PER_UNIT * 4;
+        } else {
+            RIGHT_CANDLE_GAP = 0;
+        }
         final double DRAW_HEIGHT = canvasHeight - TOP_MARGIN - BOTTOM_MARGIN;
         final double CANDLE_WIDTH = PIXELS_PER_UNIT * 0.7;
         
@@ -586,16 +616,17 @@ public class TradeView {
         drawGridWithOpenPrice(gc, LEFT_MARGIN, TOP_MARGIN, DRAW_WIDTH, DRAW_HEIGHT, BOTTOM_MARGIN,
                 yAxisMin, yAxisMax, yAxisRange, openPrice, yOpen, kLines, klineInterval, canvasWidth);
         
-        // 计算显示范围 - 从左边开始画
+        // 计算显示范围 - 根据滚动条位置计算起始X坐标
         double totalWidth = kLines.size() * PIXELS_PER_UNIT;
-        // 右边保留至少4个蜡烛条宽度时才靠右，否则向左移动显示更多数据
+        double maxScrollVal = Math.max(0, totalWidth - DRAW_WIDTH + RIGHT_CANDLE_GAP);
+        
+        double scrollValue = klineScrollBar != null ? klineScrollBar.getValue() : maxScrollVal;
+        
         double startX;
         if (totalWidth <= DRAW_WIDTH - RIGHT_CANDLE_GAP) {
-            // 右边有足够空间，从左边开始（保持右边4个蜡烛条间隙）
             startX = LEFT_MARGIN;
         } else {
-            // 数据超出图表范围，显示最新的部分（右侧）
-            startX = LEFT_MARGIN + DRAW_WIDTH - RIGHT_CANDLE_GAP - totalWidth;
+            startX = LEFT_MARGIN - scrollValue;
         }
         
         // 绘制K线
@@ -619,7 +650,7 @@ public class TradeView {
             
             // 涨跌颜色
             boolean isRising = currentPrice >= prevPrice;
-            Color color = isRising ? Color.web("#ff3333") : Color.web("#33ff33");
+            Color color = isRising ? Color.web("#ff3333") : Color.web("#00A000");
             
             // 绘制影线
             gc.setStroke(color);
@@ -879,11 +910,7 @@ public class TradeView {
             }
             
             // 刷新股票状态
-            List<Stock> stocks = tradingService.getAllStocks();
-            Stock updatedStock = stocks.stream()
-                    .filter(s -> s.getId().equals(stock.getId()))
-                    .findFirst()
-                    .orElse(stock);
+            Stock updatedStock = tradingService.getStockById(stock.getId());
             this.stock = updatedStock;
             
             // 改变按钮文本
@@ -905,11 +932,7 @@ public class TradeView {
             tradingService.startGame(stock.getId());
             sessionId = getLastSessionId();
             // 刷新股票状态
-            List<Stock> stocks = tradingService.getAllStocks();
-            Stock updatedStock = stocks.stream()
-                    .filter(s -> s.getId().equals(stock.getId()))
-                    .findFirst()
-                    .orElse(stock);
+            Stock updatedStock = tradingService.getStockById(stock.getId());
             this.stock = updatedStock;
             
             // 重新创建完整的交易界面
@@ -953,7 +976,7 @@ public class TradeView {
         Button sellPopupBtn = new Button("卖出");
         sellPopupBtn.setPrefWidth(80);
         sellPopupBtn.setPrefHeight(35);
-        sellPopupBtn.setStyle("-fx-background-color: #33ff33; -fx-text-fill: white; -fx-font-size: 14px; -fx-font-weight: bold;");
+        sellPopupBtn.setStyle("-fx-background-color: #00A000; -fx-text-fill: white; -fx-font-size: 14px; -fx-font-weight: bold;");
         sellPopupBtn.setOnAction(e -> showSellPopup());
         
         Button viewKLineBtn = new Button("查看K线");
@@ -1017,6 +1040,33 @@ public class TradeView {
         
         chartContainer.getChildren().add(candlestickChart);
         
+        // 添加K线图滚动条
+        klineScrollBar = new ScrollBar();
+        klineScrollBar.setOrientation(Orientation.HORIZONTAL);
+        klineScrollBar.setMin(0);
+        klineScrollBar.setMax(0);
+        klineScrollBar.setValue(0);
+        klineScrollBar.setVisible(false);
+        
+        // 监听滚动条变化
+        klineScrollBar.valueProperty().addListener((obs, oldVal, newVal) -> {
+            if (!updatingScrollBar) {
+                userScrollingKline = true;
+            }
+            try {
+                updateCandlestickChart();
+            } catch (SQLException ex) {
+                ex.printStackTrace();
+            }
+        });
+        
+        // 图表和滚动条使用VBox组合
+        VBox chartBox = new VBox(0);
+        chartBox.getChildren().addAll(chartContainer, klineScrollBar);
+        
+        // 滚动条高度
+        klineScrollBar.setPrefHeight(15);
+        
         // 添加鼠标悬停提示
         setupCandlestickChartHover();
         
@@ -1066,8 +1116,8 @@ public class TradeView {
         VBox.setVgrow(orderTable, Priority.ALWAYS);
         
         // 组装主界面
-        view.getChildren().addAll(topPanel, klineTypeBox, chartTitle, chartContainer, orderPanel);
-        VBox.setVgrow(chartContainer, Priority.ALWAYS);
+        view.getChildren().addAll(topPanel, klineTypeBox, chartTitle, chartBox, orderPanel);
+        VBox.setVgrow(chartBox, Priority.ALWAYS);
     }
     
     // 创建游戏结束后的界面（历史K线图）- 返回VBox供createView使用

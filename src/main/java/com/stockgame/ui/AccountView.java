@@ -199,10 +199,7 @@ public class AccountView {
         TableColumn<GameSession, String> stockCol = new TableColumn<>("股票");
         stockCol.setCellValueFactory(data -> {
             try {
-                Stock stock = tradingService.getAllStocks().stream()
-                        .filter(s -> s.getId().equals(data.getValue().getStockId()))
-                        .findFirst()
-                        .orElse(null);
+                Stock stock = tradingService.getStockById(data.getValue().getStockId());
                 return new SimpleStringProperty(stock != null ? stock.getStockName() : "未知");
             } catch (SQLException e) {
                 return new SimpleStringProperty("未知");

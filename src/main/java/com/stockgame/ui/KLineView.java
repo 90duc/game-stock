@@ -59,7 +59,7 @@ public class KLineView {
         redLabel.setStyle("-fx-text-fill: #ff3333;");
         
         Label greenLabel = new Label("■ 跌");
-        greenLabel.setStyle("-fx-text-fill: #33ff33;");
+        greenLabel.setStyle("-fx-text-fill: #00A000;");
         
         legendBox.getChildren().addAll(redLabel, greenLabel);
         
@@ -168,7 +168,7 @@ public class KLineView {
             
             // 确定涨跌颜色
             boolean isRising = close >= open;
-            Color color = isRising ? Color.web("#ff3333") : Color.web("#33ff33");
+            Color color = isRising ? Color.web("#ff3333") : Color.web("#00A000");
             
             gc.setStroke(color);
             gc.setLineWidth(1);
