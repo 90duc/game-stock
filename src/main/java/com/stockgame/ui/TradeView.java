@@ -15,6 +15,7 @@ import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
+import javafx.stage.Window;
 
 import java.math.BigDecimal;
 import java.sql.SQLException;
@@ -286,7 +287,7 @@ public class TradeView {
                 popupStage.close();
                 refresh();
             } catch (Exception ex) {
-                showAlert("委托失败: " + ex.getMessage());
+                showAlert("委托失败: " + ex.getMessage(), popupStage);
             }
         });
         cancelBtn.setOnAction(e -> popupStage.close());
@@ -359,7 +360,7 @@ public class TradeView {
                 popupStage.close();
                 refresh();
             } catch (Exception ex) {
-                showAlert("委托失败: " + ex.getMessage());
+                showAlert("委托失败: " + ex.getMessage(), popupStage);
             }
         });
         cancelBtn.setOnAction(e -> popupStage.close());
@@ -1430,13 +1431,26 @@ public class TradeView {
     }
     
     private void showAlert(String message) {
-        Platform.runLater(() -> {
-            Alert alert = new Alert(Alert.AlertType.INFORMATION);
-            alert.setTitle("提示");
-            alert.setHeaderText(null);
-            alert.setContentText(message);
-            alert.showAndWait();
-        });
+        showAlert(message, null);
+    }
+    
+    private void showAlert(String message, Stage ownerStage) {
+
+        Alert alert = new Alert(Alert.AlertType.INFORMATION);
+        alert.setTitle("提示");
+        alert.setHeaderText(null);
+        alert.setContentText(message);
+        
+        if (ownerStage != null) {
+            alert.initOwner(ownerStage);
+        }
+        
+        alert.showAndWait();
+        
+        if (ownerStage != null) {
+            ownerStage.toFront();
+            ownerStage.requestFocus();
+        }
     }
     
     // 获取最后一次游戏的sessionId
