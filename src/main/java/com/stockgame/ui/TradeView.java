@@ -28,18 +28,11 @@ public class TradeView {
     private Stock stock;
     private VBox view;
     private KLineChartPane kLineChartPane;
-    private Canvas candlestickChart;
-    private Pane chartContainer;
-    private ScrollBar klineScrollBar;
-    private boolean userScrollingKline = false;
-    private boolean updatingScrollBar = false;
     private TableView<Order> orderTable;
     private Label priceLabel;
     private Button startEndGameBtn; // 开始/结束游戏按钮
     private javafx.animation.Timeline refreshTimeline;
     private int klineInterval = 1; // 默认1秒K线
-    private static final int CHART_WIDTH = 480;
-    private static final int CHART_HEIGHT = 350;
     private Long sessionId;
     private BigDecimal gameOpenPrice;
     
@@ -82,11 +75,17 @@ public class TradeView {
         ToggleButton btn = new ToggleButton(text);
         btn.setToggleGroup(group);
         btn.setPrefWidth(50);
-        btn.setStyle("-fx-font-size: 11px;");
+        btn.setStyle("-fx-font-size: 11px; -fx-background-color: #333; -fx-text-fill: white;");
+        btn.selectedProperty().addListener((obs, wasSelected, isSelected) -> {
+            if (isSelected) {
+                btn.setStyle("-fx-font-size: 11px; -fx-background-color: #FF9800; -fx-text-fill: white;");
+            } else {
+                btn.setStyle("-fx-font-size: 11px; -fx-background-color: #333; -fx-text-fill: white;");
+            }
+        });
         btn.setOnAction(e -> {
             if (btn.isSelected()) {
                 klineInterval = interval;
-                userScrollingKline = false;
                 try {
                     updateCandlestickChart();
                 } catch (SQLException ex) {
@@ -102,7 +101,14 @@ public class TradeView {
         ToggleButton btn = new ToggleButton(text);
         btn.setToggleGroup(group);
         btn.setPrefWidth(50);
-        btn.setStyle("-fx-font-size: 11px;");
+        btn.setStyle("-fx-font-size: 11px; -fx-background-color: #333; -fx-text-fill: white;");
+        btn.selectedProperty().addListener((obs, wasSelected, isSelected) -> {
+            if (isSelected) {
+                btn.setStyle("-fx-font-size: 11px; -fx-background-color: #FF9800; -fx-text-fill: white;");
+            } else {
+                btn.setStyle("-fx-font-size: 11px; -fx-background-color: #333; -fx-text-fill: white;");
+            }
+        });
         btn.setOnAction(e -> {
             if (btn.isSelected()) {
                 klineInterval = interval;
@@ -112,109 +118,6 @@ public class TradeView {
         });
         return btn;
     }
-    
-    // 设置蜡烛图鼠标悬停提示
-    private void setupCandlestickChartHover() {
-        Tooltip tooltip = new Tooltip();
-        tooltip.setStyle("-fx-font-size: 12px; -fx-background-color: #333; -fx-text-fill: white;");
-        
-        candlestickChart.setOnMouseMoved(event -> {
-            try {
-                // 获取当前显示的K线数据
-                List<IntradayKLine> kLines = tradingService.getAllIntradayKLines(stock.getId());
-                if (kLines == null || kLines.isEmpty()) {
-                    tooltip.hide();
-                    return;
-                }
-                
-                // 根据当前klineInterval聚合数据
-                kLines = aggregateKLines(kLines, klineInterval);
-                
-                double mouseX = event.getX();
-                double mouseY = event.getY();
-                
-                // 获取实际画布尺寸（与绘制时保持一致）
-                double canvasWidth = candlestickChart.getWidth();
-                
-                // 图表参数（与绘制时保持一致）
-                final double LEFT_MARGIN = 60;
-                final double RIGHT_MARGIN = 15;
-                final double PIXELS_PER_UNIT = 8.0;
-                // 最新蜡烛条右边保留4个蜡烛条宽度
-                final double RIGHT_CANDLE_GAP = PIXELS_PER_UNIT * 4;
-                final double DRAW_WIDTH = canvasWidth - LEFT_MARGIN - RIGHT_MARGIN;
-                
-                // 计算显示范围（与绘制时保持一致）
-                double totalWidth = kLines.size() * PIXELS_PER_UNIT;
-                double startX;
-                // 右边保留至少4个蜡烛条宽度时才靠右，否则向左移动显示更多数据
-                if (totalWidth <= DRAW_WIDTH - RIGHT_CANDLE_GAP) {
-                    // 右边有足够空间，从左边开始（保持右边4个蜡烛条间隙）
-                    startX = LEFT_MARGIN;
-                } else {
-                    // 数据超出图表范围，显示最新的部分（右侧）
-                    startX = LEFT_MARGIN + DRAW_WIDTH - RIGHT_CANDLE_GAP - totalWidth;
-                }
-                
-                // 查找鼠标悬停对应的K线索引
-                int index = -1;
-                if (mouseX >= LEFT_MARGIN && mouseX <= canvasWidth - RIGHT_MARGIN - RIGHT_CANDLE_GAP) {
-                    double relativeX = mouseX - startX;
-                    index = (int) (relativeX / PIXELS_PER_UNIT);
-                }
-                
-                if (index >= 0 && index < kLines.size()) {
-                    IntradayKLine kline = kLines.get(index);
-                    
-                    // 计算涨跌
-                    double currentPrice = kline.getPrice().doubleValue();
-                    double prevPrice = currentPrice;
-                    if (index > 0) {
-                        prevPrice = kLines.get(index - 1).getPrice().doubleValue();
-                    }
-                    boolean isRising = currentPrice >= prevPrice;
-                    String changeStr = isRising ? "▲" : "▼";
-                    
-                    // 格式化时间
-                    java.time.LocalDateTime time = kline.getTime();
-                    String timeStr;
-                    if (klineInterval >= 60) {
-                        timeStr = String.format("%02d:%02d", time.getHour(), time.getMinute());
-                    } else {
-                        timeStr = String.format("%02d:%02d:%02d", time.getHour(), time.getMinute(), time.getSecond());
-                    }
-                    
-                    // 设置提示内容
-                    String tooltipText = String.format(
-                        "时间: %s\n价格: %.2f %s",
-                        timeStr,
-                        currentPrice,
-                        changeStr
-                    );
-                    tooltip.setText(tooltipText);
-                    
-                    // 显示提示
-                    if (!tooltip.isShowing()) {
-                        tooltip.show(candlestickChart, 
-                            event.getScreenX() + 10, 
-                            event.getScreenY() - 10);
-                    } else {
-                        tooltip.setX(event.getScreenX() + 10);
-                        tooltip.setY(event.getScreenY() - 10);
-                    }
-                } else {
-                    tooltip.hide();
-                }
-            } catch (SQLException ex) {
-                ex.printStackTrace();
-            }
-        });
-        
-        candlestickChart.setOnMouseExited(event -> {
-            tooltip.hide();
-        });
-    }
-
 
     private VBox createView() {
         // 如果游戏未开始，根据showAsEnded决定显示哪个界面

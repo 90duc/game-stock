@@ -197,6 +197,11 @@ public class KLineChartPane {
             maxPrice = Math.max(maxPrice, line.getHigh().doubleValue());
         }
         
+        // 以传入的开盘价为基准计算范围
+        double openPriceValue = openPrice != null ? openPrice.doubleValue() : ((minPrice + maxPrice) / 2);
+        double halfRange = Math.max(maxPrice - openPriceValue, openPriceValue - minPrice) * 1.1;
+        minPrice = openPriceValue - halfRange;
+        maxPrice = openPriceValue + halfRange;
         double priceRange = maxPrice - minPrice;
         minPrice -= priceRange * 0.05;
         maxPrice += priceRange * 0.05;
