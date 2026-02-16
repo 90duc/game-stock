@@ -130,7 +130,7 @@ public class KLineChartPane {
     private String buildTooltipText(KLine line) {
         StringBuilder sb = new StringBuilder();
         sb.append(line.getLabel()).append("\n");
-        
+
         boolean hasOHLC = line.hasOHLC();
         if (hasOHLC) {
             sb.append("开盘: ").append(line.getOpen()).append("\n");
@@ -199,8 +199,7 @@ public class KLineChartPane {
             double x = 60 + i * candleWidth;
             gc.strokeLine(x, 50, x, CANVAS_HEIGHT - 50);
         }
-        
-        boolean hasOHLC = kLines.get(0).hasOHLC();
+
         
         for (int i = 0; i < displayCount; i++) {
             KLine line = kLines.get(startIndex + i);
@@ -208,12 +207,8 @@ public class KLineChartPane {
             double x = 60 + i * candleWidth + candleWidth / 2;
             
             double open, close, high, low;
-            if (hasOHLC) {
-                open = line.getOpen().doubleValue();
-                close = line.getClose().doubleValue();
-            } else {
-                open = close = line.getClose().doubleValue();
-            }
+            open = line.getOpen().doubleValue();
+            close = line.getClose().doubleValue();
             high = line.getHigh().doubleValue();
             low = line.getLow().doubleValue();
             

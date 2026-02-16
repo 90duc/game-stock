@@ -9,20 +9,14 @@ public class IntradayKLineAdapter implements KLine<IntradayKLineAdapter> {
     private final BigDecimal low;
     private final boolean hasOHLC;
     
-    public IntradayKLineAdapter(IntradayKLine kline) {
-        this.kline = kline;
-        this.open = kline.getPrice();
-        this.high = kline.getPrice();
-        this.low = kline.getPrice();
-        this.hasOHLC = false;
-    }
+
     
-    public IntradayKLineAdapter(IntradayKLine kline, BigDecimal open, BigDecimal high, BigDecimal low) {
+    public IntradayKLineAdapter(IntradayKLine kline, BigDecimal open, BigDecimal high, BigDecimal low, boolean hasOHLC) {
         this.kline = kline;
         this.open = open;
         this.high = high;
         this.low = low;
-        this.hasOHLC = true;
+        this.hasOHLC = hasOHLC;
     }
     
     public IntradayKLine getKline() {
