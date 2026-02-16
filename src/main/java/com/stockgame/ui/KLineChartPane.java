@@ -88,7 +88,7 @@ public class KLineChartPane {
                 int startIndex = (int) ((currentKLines.size() - maxDisplay) * (sliderValue / 100));
                 startIndex = Math.max(0, Math.min(startIndex, currentKLines.size() - maxDisplay));
                 
-                double candleWidth = (CANVAS_WIDTH - 80.0) / maxDisplay;
+                double candleWidth = (CANVAS_WIDTH - 80.0) / 50;
                 int idx = (int) ((x - 60) / candleWidth);
                 
                 if (idx >= 0 && idx < maxDisplay && startIndex + idx >= 0 && startIndex + idx < currentKLines.size()) {
