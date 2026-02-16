@@ -4,9 +4,25 @@ import java.math.BigDecimal;
 
 public class IntradayKLineAdapter implements KLine<IntradayKLineAdapter> {
     private final IntradayKLine kline;
+    private final BigDecimal open;
+    private final BigDecimal high;
+    private final BigDecimal low;
+    private final boolean hasOHLC;
     
     public IntradayKLineAdapter(IntradayKLine kline) {
         this.kline = kline;
+        this.open = kline.getPrice();
+        this.high = kline.getPrice();
+        this.low = kline.getPrice();
+        this.hasOHLC = false;
+    }
+    
+    public IntradayKLineAdapter(IntradayKLine kline, BigDecimal open, BigDecimal high, BigDecimal low) {
+        this.kline = kline;
+        this.open = open;
+        this.high = high;
+        this.low = low;
+        this.hasOHLC = true;
     }
     
     public IntradayKLine getKline() {
@@ -20,17 +36,17 @@ public class IntradayKLineAdapter implements KLine<IntradayKLineAdapter> {
     
     @Override
     public BigDecimal getOpen() {
-        return kline.getPrice();
+        return open;
     }
 
     @Override
     public BigDecimal getHigh() {
-        return kline.getPrice();
+        return high;
     }
 
     @Override
     public BigDecimal getLow() {
-        return kline.getPrice();
+        return low;
     }
 
     @Override
@@ -45,7 +61,7 @@ public class IntradayKLineAdapter implements KLine<IntradayKLineAdapter> {
     
     @Override
     public boolean hasOHLC() {
-        return false;
+        return hasOHLC;
     }
     
     @Override

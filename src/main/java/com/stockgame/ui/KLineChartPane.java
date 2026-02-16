@@ -150,6 +150,12 @@ public class KLineChartPane {
         gc.setFill(Color.web("#1a1a1a"));
         gc.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
         
+        if (kLines == null || kLines.isEmpty()) {
+            gc.setFill(Color.web("#666"));
+            gc.fillText("暂无数据", CANVAS_WIDTH / 2 - 30, CANVAS_HEIGHT / 2);
+            return;
+        }
+        
         double sliderValue = scrollSlider.getValue();
         int maxDisplay = Math.min(50, kLines.size());
         int startIndex = (int) ((kLines.size() - maxDisplay) * (sliderValue / 100));
@@ -187,7 +193,7 @@ public class KLineChartPane {
             gc.fillText(String.format("%.2f", price), 5, (int)y + 4);
         }
         
-        double candleWidth = (CANVAS_WIDTH - 80.0) / displayCount;
+        double candleWidth = (CANVAS_WIDTH - 80.0) / 50;
         
         for (int i = 0; i <= displayCount; i += 10) {
             double x = 60 + i * candleWidth;

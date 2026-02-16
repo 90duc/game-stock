@@ -100,7 +100,7 @@ public class DataInitializer {
     
     private void generateKLines(Stock stock, BigDecimal basePrice) throws SQLException {
         LocalDate endDate = LocalDate.now();
-        LocalDate startDate = endDate.minusYears(1);
+        LocalDate startDate = endDate.minusYears(10);
         
         Random random = new Random();
         BigDecimal currentPrice = basePrice;
