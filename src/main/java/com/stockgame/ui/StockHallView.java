@@ -3,7 +3,10 @@ package com.stockgame.ui;
 import com.stockgame.model.*;
 import com.stockgame.service.StockTradingService;
 import javafx.application.Platform;
+import javafx.beans.Observable;
 import javafx.beans.property.SimpleStringProperty;
+import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
@@ -26,6 +29,7 @@ public class StockHallView {
     private TableView<Stock> stockTable;
     private Label statusLabel;
     private final Map<Long, Stage> tradeStages = new HashMap<>();
+    private final ObservableList<Stock> stockList = FXCollections.observableArrayList();
     
     public StockHallView(StockTradingService tradingService, User currentUser) {
         this.tradingService = tradingService;
@@ -42,7 +46,7 @@ public class StockHallView {
         titleLabel.setStyle("-fx-font-size: 24px; -fx-font-weight: bold;");
         
         // 股票列表
-        stockTable = new TableView<>();
+        stockTable = new TableView<>(stockList);
         stockTable.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
         stockTable.setStyle("-fx-focus-color: transparent; -fx-faint-focus-color: transparent;");
         stockTable.setSelectionModel(null);
@@ -183,9 +187,8 @@ public class StockHallView {
     }
     
     public void refresh() throws SQLException {
-        // 刷新数据 - 按钮在行内，不需要保留选中状态
         List<Stock> stocks = tradingService.getAllStocks();
-        stockTable.getItems().setAll(stocks);
+        stockList.setAll(stocks);
     }
     
     private void startGameForStock(Stock stock) {
