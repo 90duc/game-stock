@@ -67,6 +67,13 @@ public class KLineView {
         ToggleButton btn = new ToggleButton(text);
         btn.setToggleGroup(periodGroup);
         btn.setStyle("-fx-background-color: #333; -fx-text-fill: white; -fx-min-width: 60;");
+        btn.selectedProperty().addListener((obs, wasSelected, isSelected) -> {
+            if (isSelected) {
+                btn.setStyle("-fx-background-color: #FF9800; -fx-text-fill: white; -fx-min-width: 60;");
+            } else {
+                btn.setStyle("-fx-background-color: #333; -fx-text-fill: white; -fx-min-width: 60;");
+            }
+        });
         btn.setOnAction(e -> {
             if (btn.isSelected()) {
                 loadData(period);
