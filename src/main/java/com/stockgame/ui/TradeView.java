@@ -377,6 +377,14 @@ public class TradeView {
     }
     
     private void startRefreshTimer() {
+
+        // 立即加载K线数据
+        try {
+            updateCandlestickChart();
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+
         refreshTimeline = new javafx.animation.Timeline(
             new javafx.animation.KeyFrame(
                 javafx.util.Duration.seconds(1),
@@ -658,13 +666,6 @@ public class TradeView {
             // 重新创建完整的交易界面
             view.getChildren().clear();
             rebuildTradingView();
-            
-            // 立即加载K线数据
-            try {
-                updateCandlestickChart();
-            } catch (SQLException e) {
-                e.printStackTrace();
-            }
             
             // 启动定时器
             startRefreshTimer();
