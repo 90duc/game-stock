@@ -27,6 +27,7 @@ public class TradeView {
     private final User currentUser;
     private Stock stock;
     private VBox view;
+    private KLineChartPane kLineChartPane;
     private Canvas candlestickChart;
     private Pane chartContainer;
     private ScrollBar klineScrollBar;
@@ -40,6 +41,7 @@ public class TradeView {
     private static final int CHART_WIDTH = 480;
     private static final int CHART_HEIGHT = 350;
     private Long sessionId;
+    private BigDecimal gameOpenPrice;
     
     public TradeView(StockTradingService tradingService, User currentUser, Stock stock) {
         this(tradingService, currentUser, stock, false);
@@ -392,7 +394,8 @@ public class TradeView {
     }
     
     private void updatePriceLabel(Stock s) {
-        BigDecimal openPrice = s.getPreviousClose();
+        gameOpenPrice = s.getPreviousClose();
+        BigDecimal openPrice = gameOpenPrice;
         BigDecimal currentPrice = s.getCurrentPrice();
         BigDecimal change = currentPrice.subtract(openPrice);
         BigDecimal changePercent = change.divide(openPrice, 4, BigDecimal.ROUND_HALF_UP).multiply(BigDecimal.valueOf(100));
@@ -477,42 +480,75 @@ public class TradeView {
     
     // 更新蜡烛图
     private void updateCandlestickChart() throws SQLException {
-
-        // 获取该股票的所有分时数据（不依赖用户订单）
         List<IntradayKLine> kLines = tradingService.getAllIntradayKLines(stock.getId());
-        // 根据klineInterval聚合数据
-        List<IntradayKLine> aggregatedKLines = aggregateKLines(kLines, klineInterval);
+        loadKLineToChartPane(kLines, klineInterval);
+    }
+    
+    
+    private void loadKLineToChartPane(List<IntradayKLine> kLines, int intervalSeconds) {
+        if (kLineChartPane == null) return;
         
-        // 更新滚动条范围
-        if (klineScrollBar != null && candlestickChart != null) {
-            double totalWidth = aggregatedKLines.size() * 8.0;
-            double drawWidth = candlestickChart.getWidth() - 60 - 15;
-            double rightGap = 8.0 * 4;
-            double maxScroll = Math.max(0, totalWidth - drawWidth + rightGap);
+        BigDecimal openPrice = gameOpenPrice;
+        BigDecimal currentPrice = null;
+        
+        List<KLine> adapters = new java.util.ArrayList<>();
+        
+        if (kLines == null || kLines.isEmpty()) {
+            kLineChartPane.loadData(adapters, openPrice, currentPrice);
+            return;
+        }
+        
+        currentPrice = kLines.get(kLines.size() - 1).getPrice();
+        
+        if (intervalSeconds > 1) {
+            // 需要聚合，创建带OHLC的adapter
+            java.util.Map<Long, java.util.List<IntradayKLine>> groups = new java.util.HashMap<>();
+            for (IntradayKLine line : kLines) {
+                long secondsFromStart = line.getTime().toEpochSecond(java.time.ZoneOffset.UTC);
+                long groupKey = secondsFromStart / intervalSeconds;
+                groups.computeIfAbsent(groupKey, key -> new java.util.ArrayList<>()).add(line);
+            }
             
-            if (maxScroll > 0) {
-                updatingScrollBar = true;
-                klineScrollBar.setMax(maxScroll);
-                klineScrollBar.setVisibleAmount(50);
-                klineScrollBar.setDisable(false);
-                klineScrollBar.setVisible(true);
+            java.util.List<Long> sortedKeys = new java.util.ArrayList<>(groups.keySet());
+            java.util.Collections.sort(sortedKeys);
+            
+            for (Long key : sortedKeys) {
+                java.util.List<IntradayKLine> group = groups.get(key);
+                if (group.isEmpty()) continue;
                 
-                // 如果用户没有手动拖动，始终保持在最右侧
-                if (!userScrollingKline) {
-                    klineScrollBar.setValue(maxScroll);
+                java.math.BigDecimal open = group.get(0).getPrice();
+                java.math.BigDecimal high = open;
+                java.math.BigDecimal low = open;
+                
+                for (IntradayKLine line : group) {
+                    java.math.BigDecimal price = line.getPrice();
+                    high = high.max(price);
+                    low = low.min(price);
                 }
-                updatingScrollBar = false;
-            } else {
-                klineScrollBar.setVisible(false);
-                klineScrollBar.setMax(0);
-                userScrollingKline = false;
+                
+                IntradayKLine last = group.get(group.size() - 1);
+                adapters.add(new IntradayKLineAdapter(last, open, high, low, true));
+            }
+        } else {
+            // 1秒K线：使用前一个K线的close作为open
+            java.math.BigDecimal prevClose = null;
+            for (IntradayKLine k : kLines) {
+                java.math.BigDecimal currPrice = k.getPrice();
+                
+                java.math.BigDecimal open = prevClose != null ? prevClose : currPrice;
+                java.math.BigDecimal high = open.max(currPrice);
+                java.math.BigDecimal low = open.min(currPrice);
+                
+                adapters.add(new IntradayKLineAdapter(k, open, high, low, false));
+                
+                prevClose = currPrice;
             }
         }
         
-        drawCandlestickChart(aggregatedKLines);
+        adapters.sort(java.util.Comparator.naturalOrder());
+        kLineChartPane.loadData(adapters, openPrice, currentPrice);
     }
     
-    // 根据时间间隔聚合K线数据
     private List<IntradayKLine> aggregateKLines(List<IntradayKLine> kLines, int intervalSeconds) {
         if (kLines == null || kLines.isEmpty() || intervalSeconds <= 1) {
             return kLines;
@@ -539,12 +575,6 @@ public class TradeView {
             java.util.List<IntradayKLine> group = groups.get(key);
             if (group.isEmpty()) continue;
             
-            // 计算该组的OHLC
-            IntradayKLine aggregated = new IntradayKLine();
-            aggregated.setStockId(group.get(0).getStockId());
-            aggregated.setTime(group.get(group.size() / 2).getTime()); // 取中间时间
-            
-            // Open: 第一个价格, High: 最高价格, Low: 最低价格, Close: 最后一个价格
             double open = group.get(0).getPrice().doubleValue();
             double close = group.get(group.size() - 1).getPrice().doubleValue();
             double high = open;
@@ -558,7 +588,10 @@ public class TradeView {
                 volume += line.getVolume();
             }
             
-            aggregated.setPrice(group.get(group.size() - 1).getPrice()); // 收盘价
+            IntradayKLine aggregated = new IntradayKLine();
+            aggregated.setStockId(group.get(0).getStockId());
+            aggregated.setTime(group.get(group.size() / 2).getTime());
+            aggregated.setPrice(group.get(group.size() - 1).getPrice());
             aggregated.setVolume(volume);
             aggregated.setGameSessionId(group.get(0).getGameSessionId());
             
@@ -568,343 +601,8 @@ public class TradeView {
         return result;
     }
     
-    // 绘制专业分时K线图 - 开盘价固定中间，Y轴随价格波动动态调整
-    private void drawCandlestickChart(List<IntradayKLine> kLines) {
-        GraphicsContext gc = candlestickChart.getGraphicsContext2D();
-        
-        // 获取Canvas实际尺寸
-        double canvasWidth = candlestickChart.getWidth();
-        double canvasHeight = candlestickChart.getHeight();
-        
-        // 清空画布
-        gc.setFill(Color.web("#0a0a0a"));
-        gc.fillRect(0, 0, canvasWidth, canvasHeight);
-        
-        if (kLines == null || kLines.isEmpty()) {
-            gc.setFill(Color.GRAY);
-            gc.fillText("暂无数据", canvasWidth / 2 - 30, canvasHeight / 2);
-            return;
-        }
-        
-        // 图表参数 - 使用实际Canvas尺寸
-        final double LEFT_MARGIN = 60;
-        final double RIGHT_MARGIN = 15;
-        final double TOP_MARGIN = 15;
-        final double BOTTOM_MARGIN = 25;
-        final double PIXELS_PER_UNIT = 8.0;
-        final double DRAW_WIDTH = canvasWidth - LEFT_MARGIN - RIGHT_MARGIN;
-        // 最新蜡烛条右边保留4个蜡烛条宽度（仅在滚动到最右侧时）
-        double maxScrollForGap = Math.max(0, kLines.size() * PIXELS_PER_UNIT - DRAW_WIDTH);
-        double currentScroll = klineScrollBar != null ? klineScrollBar.getValue() : 0;
-        final double RIGHT_CANDLE_GAP;
-        if (maxScrollForGap > 0 && Math.abs(currentScroll - maxScrollForGap) < 1) {
-            RIGHT_CANDLE_GAP = PIXELS_PER_UNIT * 4;
-        } else {
-            RIGHT_CANDLE_GAP = 0;
-        }
-        final double DRAW_HEIGHT = canvasHeight - TOP_MARGIN - BOTTOM_MARGIN;
-        final double CANDLE_WIDTH = PIXELS_PER_UNIT * 0.7;
-        
-        // 获取开盘价（第一个价格）作为基准
-        double openPrice = kLines.get(0).getPrice().doubleValue();
-        
-        // 获取当前所有价格的最大偏离值
-        double maxDeviation = 0;
-        double currentMax = openPrice;
-        double currentMin = openPrice;
-        
-        for (IntradayKLine line : kLines) {
-            double price = line.getPrice().doubleValue();
-            double deviation = Math.abs(price - openPrice);
-            maxDeviation = Math.max(maxDeviation, deviation);
-            currentMax = Math.max(currentMax, price);
-            currentMin = Math.min(currentMin, price);
-        }
-        
-        // 最小显示范围（确保即使波动很小时也能看清）
-        double minDisplayRange = openPrice * 0.02; // 至少显示2%的范围
-        
-        // 动态计算Y轴范围 - 以开盘价为基准，对称扩展
-        // 随着价格波动，范围逐渐扩大，但始终保持在图表中心
-        double displayRange = Math.max(maxDeviation * 1.2, minDisplayRange / 2);
-        double yAxisMax = openPrice + displayRange;
-        double yAxisMin = openPrice - displayRange;
-        double yAxisRange = yAxisMax - yAxisMin;
-        
-        // 计算开盘价的Y坐标（应该在图表正中间）
-        double yOpen = TOP_MARGIN + (yAxisMax - openPrice) / yAxisRange * DRAW_HEIGHT;
-        
-        // 计算显示范围 - 根据滚动条位置计算起始X坐标
-        double totalWidth = kLines.size() * PIXELS_PER_UNIT;
-        double maxScrollVal = Math.max(0, totalWidth - DRAW_WIDTH + RIGHT_CANDLE_GAP);
-        
-        double scrollValue = klineScrollBar != null ? klineScrollBar.getValue() : maxScrollVal;
-        
-        // 绘制背景网格和坐标轴
-        drawGridWithOpenPrice(gc, LEFT_MARGIN, TOP_MARGIN, DRAW_WIDTH, DRAW_HEIGHT, BOTTOM_MARGIN,
-                yAxisMin, yAxisMax, yAxisRange, openPrice, yOpen, kLines, klineInterval, canvasWidth, scrollValue, maxScrollVal);
-        
-        double startX;
-        if (totalWidth <= DRAW_WIDTH - RIGHT_CANDLE_GAP) {
-            startX = LEFT_MARGIN;
-        } else {
-            startX = LEFT_MARGIN - scrollValue;
-        }
-        
-        // 绘制K线
-        for (int i = 0; i < kLines.size(); i++) {
-            double x = startX + i * PIXELS_PER_UNIT + PIXELS_PER_UNIT / 2;
-            
-            // 只绘制在可见区域内的蜡烛
-            if (x < LEFT_MARGIN - PIXELS_PER_UNIT || x > canvasWidth - RIGHT_MARGIN - RIGHT_CANDLE_GAP + PIXELS_PER_UNIT) {
-                continue;
-            }
-            
-            IntradayKLine currentLine = kLines.get(i);
-            double currentPrice = currentLine.getPrice().doubleValue();
-            
-            // 获取前一个价格
-            double prevPrice = (i > 0) ? kLines.get(i - 1).getPrice().doubleValue() : currentPrice;
-            
-            // 计算Y坐标
-            double yCurrent = TOP_MARGIN + (yAxisMax - currentPrice) / yAxisRange * DRAW_HEIGHT;
-            double yPrev = TOP_MARGIN + (yAxisMax - prevPrice) / yAxisRange * DRAW_HEIGHT;
-            
-            // 涨跌颜色
-            boolean isRising = currentPrice >= prevPrice;
-            Color color = isRising ? Color.web("#ff3333") : Color.web("#00A000");
-            
-            // 绘制影线
-            gc.setStroke(color);
-            gc.setLineWidth(1);
-            gc.strokeLine(x, Math.min(yCurrent, yPrev) - 2, x, Math.max(yCurrent, yPrev) + 2);
-            
-            // 绘制实体
-            double bodyTop = Math.min(yCurrent, yPrev);
-            double bodyBottom = Math.max(yCurrent, yPrev);
-            double bodyHeight = Math.max(bodyBottom - bodyTop, 1);
-            
-            gc.setFill(color);
-            gc.fillRect(x - CANDLE_WIDTH / 2, bodyTop, CANDLE_WIDTH, bodyHeight);
-        }
-        
-        // 绘制最新价格指示线
-        if (!kLines.isEmpty()) {
-            double lastPrice = kLines.get(kLines.size() - 1).getPrice().doubleValue();
-            double yLast = TOP_MARGIN + (yAxisMax - lastPrice) / yAxisRange * DRAW_HEIGHT;
-            
-            // 计算最后一个蜡烛的位置
-            double lastX = startX + (kLines.size() - 1) * PIXELS_PER_UNIT + PIXELS_PER_UNIT / 2;
-            
-            gc.setStroke(Color.YELLOW);
-            gc.setLineWidth(1);
-            gc.setLineDashes(5, 5);
-            gc.strokeLine(LEFT_MARGIN, yLast, canvasWidth - RIGHT_MARGIN, yLast);
-            gc.setLineDashes();
-            
-            // 数值显示在纵坐标左边，与刻度对齐
-            gc.setFill(Color.YELLOW);
-            gc.fillText(String.format("%.2f", lastPrice), 5, yLast + 4);
-        }
-    }
-    
-    // 绘制背景网格
-    private void drawGrid(GraphicsContext gc, double left, double top, double width, double height, 
-                         double minPrice, double maxPrice, double priceRange) {
-        gc.setStroke(Color.web("#1f1f1f"));
-        gc.setLineWidth(0.5);
-        
-        // 水平网格线 - 5条
-        for (int i = 0; i <= 4; i++) {
-            double y = top + i * height / 4.0;
-            gc.strokeLine(left, y, left + width, y);
-            
-            // 价格标签
-            double price = maxPrice - i * priceRange / 4.0;
-            gc.setFill(Color.web("#666"));
-            gc.fillText(String.format("%.2f", price), 5, (int)y + 4);
-        }
-        
-        // 垂直网格线 - 时间刻度
-        for (int i = 0; i <= 6; i++) {
-            double x = left + i * width / 6.0;
-            gc.strokeLine(x, top, x, top + height);
-        }
-        
-        // 绘制边框
-        gc.setStroke(Color.web("#444"));
-        gc.setLineWidth(1);
-        gc.strokeRect(left, top, width, height);
-    }
-    
-    // 绘制背景网格和横坐标时间轴
-    private void drawGridWithTimeAxis(GraphicsContext gc, double left, double top, double width, double height, 
-                                      double bottomMargin, double minPrice, double maxPrice, double priceRange,
-                                      List<IntradayKLine> kLines, int intervalSeconds) {
-        gc.setStroke(Color.web("#1f1f1f"));
-        gc.setLineWidth(0.5);
-        
-        // 水平网格线 - 5条
-        for (int i = 0; i <= 4; i++) {
-            double y = top + i * height / 4.0;
-            gc.strokeLine(left, y, left + width, y);
-            
-            // 价格标签
-            double price = maxPrice - i * priceRange / 4.0;
-            gc.setFill(Color.web("#666"));
-            gc.fillText(String.format("%.2f", price), 5, (int)y + 4);
-        }
-        
-        // 垂直网格线和时间刻度
-        int timeLabelInterval = 10; // 每10个蜡烛显示一个时间标签
-        double pixelsPerUnit = 8.0;
-        double totalWidth = kLines.size() * pixelsPerUnit;
-        double startX = left + width - totalWidth;
-        
-        for (int i = 0; i < kLines.size(); i += timeLabelInterval) {
-            double x = startX + i * pixelsPerUnit + pixelsPerUnit / 2;
-            
-            if (x >= left && x <= left + width) {
-                // 绘制垂直网格线
-                gc.strokeLine(x, top, x, top + height);
-                
-                // 绘制时间标签
-                IntradayKLine kline = kLines.get(i);
-                java.time.LocalDateTime time = kline.getTime();
-                String timeStr;
-                
-                if (intervalSeconds >= 60) {
-                    // 分钟级别显示 时:分
-                    timeStr = String.format("%02d:%02d", time.getHour(), time.getMinute());
-                } else {
-                    // 秒级别显示 分:秒
-                    timeStr = String.format("%02d:%02d", time.getMinute(), time.getSecond());
-                }
-                
-                gc.setFill(Color.web("#666"));
-                gc.fillText(timeStr, (int)x - 15, (int)(top + height + 15));
-            }
-        }
-        
-        // 绘制X轴线
-        gc.setStroke(Color.web("#444"));
-        gc.setLineWidth(1);
-        gc.strokeLine(left, top + height, left + width, top + height);
-        
-        // 绘制Y轴线
-        gc.strokeLine(left, top, left, top + height);
-    }
-    
-    // 绘制背景网格和开盘线（开盘线固定在中间）
-    private void drawGridWithOpenPrice(GraphicsContext gc, double left, double top, double width, double height,
-                                       double bottomMargin, double minPrice, double maxPrice, double priceRange,
-                                       double openPrice, double yOpen, List<IntradayKLine> kLines, int intervalSeconds, 
-                                       double canvasWidth, double scrollValue, double maxScrollVal) {
-        gc.setStroke(Color.web("#1f1f1f"));
-        gc.setLineWidth(0.5);
-        
-        // 水平网格线 - 以开盘线为中心对称分布
-        int gridLines = 5;
-        for (int i = 0; i <= gridLines; i++) {
-            // 计算相对于开盘线的偏移
-            double ratio = (double) i / gridLines; // 0到1
-            double price;
-            if (i <= gridLines / 2) {
-                // 上半部分（高于开盘价）
-                price = openPrice + priceRange * 0.5 * (1 - ratio * 2);
-            } else {
-                // 下半部分（低于开盘价）
-                price = openPrice - priceRange * 0.5 * ((ratio - 0.5) * 2);
-            }
-            
-            double y = top + (maxPrice - price) / priceRange * height;
-            gc.strokeLine(left, y, left + width, y);
-            
-            // 价格标签
-            gc.setFill(Color.web("#666"));
-            gc.fillText(String.format("%.2f", price), 5, (int)y + 4);
-        }
-        
-        // 绘制开盘线（白色虚线，固定在图表中间）
-        gc.setStroke(Color.WHITE);
-        gc.setLineWidth(1.5);
-        gc.setLineDashes(10, 5);
-        gc.strokeLine(left, yOpen, left + width, yOpen);
-        gc.setLineDashes();
-        
-        // 显示开盘价数值 - 放在左侧Y轴刻度区域内
-        gc.setFill(Color.WHITE);
-        gc.fillText(String.format("%.2f", openPrice), 5, (int)yOpen + 4);
-        
-        // 垂直网格线和时间刻度 - 与K线绘制使用相同的startX逻辑
-        int timeLabelInterval = 10;
-        double pixelsPerUnit = 8.0;
-        double totalWidth = kLines.size() * pixelsPerUnit;
-        double rightGap = maxScrollVal > 0 ? pixelsPerUnit * 4 : 0;
-        
-        double startX;
-        if (totalWidth <= width - rightGap) {
-            startX = left;
-        } else {
-            startX = left - scrollValue;
-        }
-        
-        for (int i = 0; i < kLines.size(); i += timeLabelInterval) {
-            double x = startX + i * pixelsPerUnit + pixelsPerUnit / 2;
-            
-            if (x >= left && x <= left + width) {
-                gc.setStroke(Color.web("#1f1f1f"));
-                gc.strokeLine(x, top, x, top + height);
-                
-                IntradayKLine kline = kLines.get(i);
-                java.time.LocalDateTime time = kline.getTime();
-                String timeStr;
-                
-                if (intervalSeconds >= 60) {
-                    timeStr = String.format("%02d:%02d", time.getHour(), time.getMinute());
-                } else {
-                    timeStr = String.format("%02d:%02d", time.getMinute(), time.getSecond());
-                }
-                
-                gc.setFill(Color.web("#666"));
-                gc.fillText(timeStr, (int)x - 15, (int)(top + height + 15));
-            }
-        }
-        
-        // 绘制边框
-        gc.setStroke(Color.web("#444"));
-        gc.setLineWidth(1);
-        gc.strokeRect(left, top, width, height);
-    }
-    
-    // 绘制移动平均线
-    private void drawAverageLine(GraphicsContext gc, List<IntradayKLine> kLines, double startX, double candleWidth,
-                                 double left, double top, double height, double minPrice, double priceRange) {
-        gc.setStroke(Color.web("#ffff00"));
-        gc.setLineWidth(1.5);
-        
-        int maPeriod = 5;  // 5周期均线
-        
-        for (int i = maPeriod - 1; i < kLines.size(); i++) {
-            // 计算MA5
-            double sum = 0;
-            for (int j = i - maPeriod + 1; j <= i; j++) {
-                sum += kLines.get(j).getPrice().doubleValue();
-            }
-            double ma = sum / maPeriod;
-            double y = top + (minPrice + priceRange - ma) / priceRange * height;
-            double x = startX + i * candleWidth + candleWidth / 2;
-            
-            if (i == maPeriod - 1) {
-                gc.beginPath();
-                gc.moveTo(x, y);
-            } else {
-                gc.lineTo(x, y);
-            }
-        }
-        gc.stroke();
-    }
-    
+
+
     private void cancelSelectedOrder() {
         Order selected = orderTable.getSelectionModel().getSelectedItem();
         if (selected == null) {
@@ -961,6 +659,13 @@ public class TradeView {
             view.getChildren().clear();
             rebuildTradingView();
             
+            // 立即加载K线数据
+            try {
+                updateCandlestickChart();
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
+            
             // 启动定时器
             startRefreshTimer();
             
@@ -1016,13 +721,6 @@ public class TradeView {
         buttonBox.getChildren().addAll(buyPopupBtn, sellPopupBtn, viewKLineBtn, startEndGameBtn);
         topPanel.getChildren().addAll(titleBox, buttonBox);
         
-        // 中间：蜡烛图区域
-        chartContainer = new Pane();
-        chartContainer.setPrefHeight(CHART_HEIGHT);
-        chartContainer.setMinHeight(CHART_HEIGHT);
-        chartContainer.setStyle("-fx-background-color: #0a0a0a;");
-        VBox.setVgrow(chartContainer, Priority.ALWAYS);
-        
         // K线类型选择
         HBox klineTypeBox = new HBox(5);
         klineTypeBox.setAlignment(Pos.CENTER);
@@ -1043,54 +741,8 @@ public class TradeView {
         
         klineTypeBox.getChildren().addAll(sec1Btn, sec5Btn, sec10Btn, sec30Btn, min1Btn, min5Btn, min10Btn, min30Btn, hour1Btn);
         
-        Label chartTitle = new Label("分时走势图");
-        chartTitle.setStyle("-fx-font-size: 14px; -fx-font-weight: bold;");
-        
-        candlestickChart = new Canvas(800, CHART_HEIGHT);
-        
-        // 监听容器大小变化，调整Canvas大小
-        chartContainer.widthProperty().addListener((obs, oldVal, newVal) -> {
-            if (newVal.doubleValue() > 0) {
-                candlestickChart.setWidth(newVal.doubleValue());
-                try {
-                    updateCandlestickChart();
-                } catch (SQLException ex) {
-                    ex.printStackTrace();
-                }
-            }
-        });
-        
-        chartContainer.getChildren().add(candlestickChart);
-        
-        // 添加K线图滚动条
-        klineScrollBar = new ScrollBar();
-        klineScrollBar.setOrientation(Orientation.HORIZONTAL);
-        klineScrollBar.setMin(0);
-        klineScrollBar.setMax(0);
-        klineScrollBar.setValue(0);
-        klineScrollBar.setVisible(false);
-        
-        // 监听滚动条变化
-        klineScrollBar.valueProperty().addListener((obs, oldVal, newVal) -> {
-            if (!updatingScrollBar) {
-                userScrollingKline = true;
-            }
-            try {
-                updateCandlestickChart();
-            } catch (SQLException ex) {
-                ex.printStackTrace();
-            }
-        });
-        
-        // 图表和滚动条使用VBox组合
-        VBox chartBox = new VBox(0);
-        chartBox.getChildren().addAll(chartContainer, klineScrollBar);
-        
-        // 滚动条高度
-        klineScrollBar.setPrefHeight(15);
-        
-        // 添加鼠标悬停提示
-        setupCandlestickChartHover();
+        kLineChartPane = new KLineChartPane();
+        VBox chartBox = kLineChartPane.getView();
         
         // 下方：挂单列表
         VBox orderPanel = new VBox(5);
@@ -1138,8 +790,7 @@ public class TradeView {
         VBox.setVgrow(orderTable, Priority.ALWAYS);
         
         // 组装主界面
-        view.getChildren().addAll(topPanel, klineTypeBox, chartTitle, chartBox, orderPanel);
-        VBox.setVgrow(chartBox, Priority.ALWAYS);
+        view.getChildren().addAll(topPanel, klineTypeBox, chartBox, orderPanel);
     }
     
     // 创建游戏结束后的界面（历史K线图）- 返回VBox供createView使用
@@ -1183,11 +834,6 @@ public class TradeView {
         buttonBox.getChildren().addAll(viewKLineBtn, startGameBtn);
         topPanel.getChildren().addAll(titleBox, buttonBox);
         
-        // 中间区域：显示历史K线图（带K线类型选择和鼠标悬停功能）
-        VBox centerBox = new VBox(10);
-        centerBox.setAlignment(Pos.CENTER);
-        VBox.setVgrow(centerBox, Priority.ALWAYS);
-        
         Label historyLabel = new Label("本局游戏走势图");
         historyLabel.setStyle("-fx-font-size: 14px; -fx-text-fill: #666;");
         
@@ -1211,33 +857,13 @@ public class TradeView {
         
         klineTypeBox.getChildren().addAll(sec1Btn, sec5Btn, sec10Btn, sec30Btn, min1Btn, min5Btn, min10Btn, min30Btn, hour1Btn);
         
-        // 创建Canvas容器
-        Pane chartContainer = new Pane();
-        chartContainer.setPrefHeight(350);
-        chartContainer.setMinHeight(350);
-        chartContainer.setStyle("-fx-background-color: #0a0a0a;");
-        
-        // 创建Canvas显示历史K线
-        candlestickChart = new Canvas(800, 350);
-        
-        // 监听容器大小变化
-        chartContainer.widthProperty().addListener((obs, oldVal, newVal) -> {
-            if (newVal.doubleValue() > 0) {
-                candlestickChart.setWidth(newVal.doubleValue());
-                refreshHistoricalChart(sessionId);
-            }
-        });
-        
-        chartContainer.getChildren().add(candlestickChart);
-        
-        // 添加鼠标悬停提示
-        setupHistoricalCandlestickChartHover(sessionId);
-        
+        // 创建KLineChartPane
+        kLineChartPane = new KLineChartPane();
+        VBox historyChartBox = kLineChartPane.getView();
+
         // 加载并显示历史数据
         refreshHistoricalChart(sessionId);
-        
-        centerBox.getChildren().addAll(historyLabel, klineTypeBox, chartContainer);
-        
+
         // 下方：显示本局成交记录统计
         VBox statsPanel = new VBox(5);
         
@@ -1278,8 +904,7 @@ public class TradeView {
         Label statusLabel = new Label("游戏已结束 - 点击开始游戏进行新一轮交易");
         statusLabel.setStyle("-fx-font-size: 16px; -fx-text-fill: #4CAF50; -fx-font-weight: bold;");
         
-        root.getChildren().addAll(topPanel, centerBox, statsPanel, statusLabel);
-        
+        root.getChildren().addAll(topPanel, historyLabel, klineTypeBox, historyChartBox, statsPanel, statusLabel);
         return root;
     }
     
@@ -1294,130 +919,18 @@ public class TradeView {
     // 刷新历史K线图（只显示本局数据）
     private void refreshHistoricalChart(Long sessionId) {
         if (sessionId == null) {
-            GraphicsContext gc = candlestickChart.getGraphicsContext2D();
-            gc.setFill(Color.web("#0a0a0a"));
-            gc.fillRect(0, 0, candlestickChart.getWidth(), candlestickChart.getHeight());
-            gc.setFill(Color.GRAY);
-            gc.fillText("暂无历史数据", candlestickChart.getWidth() / 2 - 40, candlestickChart.getHeight() / 2);
             return;
         }
         
         try {
             List<IntradayKLine> historicalKLines = tradingService.getIntradayKLinesBySession(stock.getId(), sessionId);
+            loadKLineToChartPane(historicalKLines, klineInterval);
 
-            if (historicalKLines != null && !historicalKLines.isEmpty()) {
-                // 根据当前klineInterval聚合数据
-                List<IntradayKLine> aggregatedKLines = aggregateKLines(historicalKLines, klineInterval);
-                drawCandlestickChart(aggregatedKLines);
-            } else {
-                GraphicsContext gc = candlestickChart.getGraphicsContext2D();
-                gc.setFill(Color.web("#0a0a0a"));
-                gc.fillRect(0, 0, candlestickChart.getWidth(), candlestickChart.getHeight());
-                gc.setFill(Color.GRAY);
-                gc.fillText("暂无历史数据", candlestickChart.getWidth() / 2 - 40, candlestickChart.getHeight() / 2);
-            }
         } catch (SQLException e) {
             e.printStackTrace();
         }
     }
-    
-    // 设置历史K线图鼠标悬停提示（只显示本局数据）
-    private void setupHistoricalCandlestickChartHover(Long sessionId) {
-        Tooltip tooltip = new Tooltip();
-        tooltip.setStyle("-fx-font-size: 12px; -fx-background-color: #333; -fx-text-fill: white;");
-        
-        candlestickChart.setOnMouseMoved(event -> {
-            try {
-                // 获取本局游戏的历史K线数据
-                List<IntradayKLine> kLines = tradingService.getIntradayKLinesBySession(stock.getId(), sessionId);
-                if (kLines == null || kLines.isEmpty()) {
-                    tooltip.hide();
-                    return;
-                }
-                
-                // 根据当前klineInterval聚合数据
-                kLines = aggregateKLines(kLines, klineInterval);
-                
-                double mouseX = event.getX();
-                double mouseY = event.getY();
-                
-                // 获取实际画布尺寸
-                double canvasWidth = candlestickChart.getWidth();
-                
-                // 图表参数（与绘制时保持一致）
-                final double LEFT_MARGIN = 60;
-                final double RIGHT_MARGIN = 15;
-                final double PIXELS_PER_UNIT = 8.0;
-                final double DRAW_WIDTH = canvasWidth - LEFT_MARGIN - RIGHT_MARGIN;
-                
-                // 计算显示范围（与绘制时保持一致）
-                double totalWidth = kLines.size() * PIXELS_PER_UNIT;
-                double startX;
-                if (totalWidth <= DRAW_WIDTH) {
-                    startX = LEFT_MARGIN;
-                } else {
-                    startX = LEFT_MARGIN + DRAW_WIDTH - totalWidth;
-                }
-                
-                // 查找鼠标悬停对应的K线索引
-                int index = -1;
-                if (mouseX >= LEFT_MARGIN && mouseX <= canvasWidth - RIGHT_MARGIN) {
-                    double relativeX = mouseX - startX;
-                    index = (int) (relativeX / PIXELS_PER_UNIT);
-                }
-                
-                if (index >= 0 && index < kLines.size()) {
-                    IntradayKLine kline = kLines.get(index);
-                    
-                    // 计算涨跌
-                    double currentPrice = kline.getPrice().doubleValue();
-                    double prevPrice = currentPrice;
-                    if (index > 0) {
-                        prevPrice = kLines.get(index - 1).getPrice().doubleValue();
-                    }
-                    boolean isRising = currentPrice >= prevPrice;
-                    String changeStr = isRising ? "▲" : "▼";
-                    
-                    // 格式化时间
-                    java.time.LocalDateTime time = kline.getTime();
-                    String timeStr;
-                    if (klineInterval >= 60) {
-                        timeStr = String.format("%02d:%02d", time.getHour(), time.getMinute());
-                    } else {
-                        timeStr = String.format("%02d:%02d:%02d", time.getHour(), time.getMinute(), time.getSecond());
-                    }
-                    
-                    // 设置提示内容
-                    String tooltipText = String.format(
-                        "时间: %s\n价格: %.2f %s",
-                        timeStr,
-                        currentPrice,
-                        changeStr
-                    );
-                    tooltip.setText(tooltipText);
-                    
-                    // 显示提示
-                    if (!tooltip.isShowing()) {
-                        tooltip.show(candlestickChart, 
-                            event.getScreenX() + 10, 
-                            event.getScreenY() - 10);
-                    } else {
-                        tooltip.setX(event.getScreenX() + 10);
-                        tooltip.setY(event.getScreenY() - 10);
-                    }
-                } else {
-                    tooltip.hide();
-                }
-            } catch (SQLException ex) {
-                ex.printStackTrace();
-            }
-        });
-        
-        candlestickChart.setOnMouseExited(event -> {
-            tooltip.hide();
-        });
-    }
-    
+
     // 显示K线图
     private void showKLineView() {
         try {

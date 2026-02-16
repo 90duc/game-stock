@@ -13,6 +13,7 @@ import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.function.Consumer;
 
@@ -22,38 +23,47 @@ public class KLineChartPane {
     private Slider scrollSlider;
     private Label hoverLabel;
     private List<KLine> currentKLines;
-    private static final int CANVAS_WIDTH = 850;
-    private static final int CANVAS_HEIGHT = 450;
+    private static final int CANVAS_HEIGHT = 350;
+    private static final int CHART_MARGIN_TOP = 15;
+    private static final int CHART_MARGIN_BOTTOM = 25;
+    private static final int CHART_MARGIN_LEFT = 40;
+    private static final int CHART_MARGIN_RIGHT = 0;
+
+    private static final int CANDLE_MAX_SIZE = 100;
     private double maxPriceValue;
     private double minPriceValue;
+    private BigDecimal openPrice;
+    private BigDecimal currentPrice;
     private Consumer<String> periodChangeListener;
     
     public KLineChartPane() {
         this.view = createView();
     }
-    
-    public void setPeriodChangeListener(Consumer<String> listener) {
-        this.periodChangeListener = listener;
-    }
-    
+
     public VBox getView() {
         return view;
     }
     
     public void loadData(List<? extends KLine> kLines) {
-
-        currentKLines = (List<KLine>) (List<?>) kLines;
+        loadData(kLines, null, null);
+    }
+    
+    public void loadData(List<? extends KLine> kLines, BigDecimal openPrice, BigDecimal currentPrice) {
+        this.openPrice = openPrice;
+        this.currentPrice = currentPrice;
+        currentKLines = (List<KLine>) kLines;
         scrollSlider.setValue(100);
-        drawCandlestickChart(currentKLines);
-
+        drawCandlestickChart();
     }
     
     private VBox createView() {
         VBox root = new VBox(10);
         root.setPadding(new Insets(10));
         root.setStyle("-fx-background-color: #1a1a1a;");
+        root.setMinWidth(850);
+        root.setMinHeight(CANVAS_HEIGHT + 50);
         
-        canvas = new Canvas(CANVAS_WIDTH, CANVAS_HEIGHT);
+        canvas = new Canvas(850, CANVAS_HEIGHT);
         
         hoverLabel = new Label();
         hoverLabel.setStyle("-fx-font-size: 12px; -fx-text-fill: white; -fx-background-color: #444; -fx-padding: 5 8 5 8; -fx-background-radius: 3; -fx-alignment: center;");
@@ -62,8 +72,18 @@ public class KLineChartPane {
         hoverLabel.setWrapText(true);
         
         AnchorPane chartPane = new AnchorPane();
+        chartPane.setMinSize(400, 200);
         chartPane.getChildren().add(canvas);
         chartPane.getChildren().add(hoverLabel);
+        
+        chartPane.widthProperty().addListener((obs, oldVal, newVal) -> {
+            if (newVal != null && newVal.doubleValue() > 0) {
+                canvas.setWidth(newVal.doubleValue());
+                if (currentKLines != null) {
+                    drawCandlestickChart();
+                }
+            }
+        });
         
         scrollSlider = new Slider();
         scrollSlider.setMin(0);
@@ -71,40 +91,44 @@ public class KLineChartPane {
         scrollSlider.setValue(100);
         scrollSlider.valueProperty().addListener((obs, oldVal, newVal) -> {
             if (currentKLines != null) {
-                drawCandlestickChart(currentKLines);
+                drawCandlestickChart();
             }
         });
-        
-        HBox sliderBox = new HBox(new Label("范围:"), scrollSlider);
+
+        Label label = new Label("范围:");
+        label.setStyle("-fx-font-size: 12px; -fx-text-fill: white; -fx-alignment: center;");
+        HBox sliderBox = new HBox(label, scrollSlider);
+
         sliderBox.setAlignment(Pos.CENTER_LEFT);
         
         canvas.setOnMouseMoved(e -> {
             double x = e.getX();
             double y = e.getY();
+            double canvasWidth = canvas.getWidth();
             
-            if (currentKLines != null && y >= 50 && y <= CANVAS_HEIGHT - 50) {
+            if (currentKLines != null && y >= CHART_MARGIN_TOP && y <= CANVAS_HEIGHT - CHART_MARGIN_BOTTOM) {
                 double sliderValue = scrollSlider.getValue();
-                int maxDisplay = Math.min(50, currentKLines.size());
+                int maxDisplay = Math.min(CANDLE_MAX_SIZE, currentKLines.size());
                 int startIndex = (int) ((currentKLines.size() - maxDisplay) * (sliderValue / 100));
                 startIndex = Math.max(0, Math.min(startIndex, currentKLines.size() - maxDisplay));
                 
-                double candleWidth = (CANVAS_WIDTH - 80.0) / 50;
-                int idx = (int) ((x - 60) / candleWidth);
+                double candleWidth = (canvasWidth - CHART_MARGIN_LEFT - CHART_MARGIN_RIGHT) / CANDLE_MAX_SIZE;
+                int idx = (int) ((x - CHART_MARGIN_LEFT) / candleWidth);
                 
                 if (idx >= 0 && idx < maxDisplay && startIndex + idx >= 0 && startIndex + idx < currentKLines.size()) {
                     KLine line = currentKLines.get(startIndex + idx);
                     
                     String text = buildTooltipText(line);
                     
-                    double candleX = 60 + idx * candleWidth;
+                    double candleX = CHART_MARGIN_LEFT + idx * candleWidth;
                     
                     double priceRange = maxPriceValue - minPriceValue;
-                    double highY = 50 + (maxPriceValue - line.getHigh().doubleValue()) / priceRange * (CANVAS_HEIGHT - 100);
+                    double highY = CHART_MARGIN_TOP + (maxPriceValue - line.getHigh().doubleValue()) / priceRange * (CANVAS_HEIGHT - CHART_MARGIN_TOP - CHART_MARGIN_BOTTOM);
                     
                     hoverLabel.setText(text);
                     double labelWidth = hoverLabel.getWidth() > 0 ? hoverLabel.getWidth() : 80;
                     double candleRight = candleX + candleWidth;
-                    if (candleRight + 20 + labelWidth > CANVAS_WIDTH - 20) {
+                    if (candleRight + 20 + labelWidth > canvasWidth - CHART_MARGIN_RIGHT) {
                         AnchorPane.setLeftAnchor(hoverLabel, candleX - labelWidth - 5);
                     } else {
                         AnchorPane.setLeftAnchor(hoverLabel, candleX + 20);
@@ -144,22 +168,22 @@ public class KLineChartPane {
         return sb.toString();
     }
     
-    private void drawCandlestickChart(List<KLine> kLines) {
+    private void drawCandlestickChart() {
         GraphicsContext gc = canvas.getGraphicsContext2D();
-        
+        double canvasWidth = canvas.getWidth();
         gc.setFill(Color.web("#1a1a1a"));
-        gc.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+        gc.fillRect(0, 0, canvasWidth, CANVAS_HEIGHT);
         
-        if (kLines == null || kLines.isEmpty()) {
+        if (currentKLines == null || currentKLines.isEmpty()) {
             gc.setFill(Color.web("#666"));
-            gc.fillText("暂无数据", CANVAS_WIDTH / 2 - 30, CANVAS_HEIGHT / 2);
+            gc.fillText("暂无数据", canvasWidth / 2 - 30, CANVAS_HEIGHT / 2);
             return;
         }
         
         double sliderValue = scrollSlider.getValue();
-        int maxDisplay = Math.min(50, kLines.size());
-        int startIndex = (int) ((kLines.size() - maxDisplay) * (sliderValue / 100));
-        startIndex = Math.max(0, Math.min(startIndex, kLines.size() - maxDisplay));
+        int maxDisplay = Math.min(CANDLE_MAX_SIZE, currentKLines.size());
+        int startIndex = (int) ((currentKLines.size() - maxDisplay) * (sliderValue / 100));
+        startIndex = Math.max(0, Math.min(startIndex, currentKLines.size() - maxDisplay));
         
         int displayCount = maxDisplay;
         
@@ -168,7 +192,7 @@ public class KLineChartPane {
         double minPrice = Double.MAX_VALUE;
         double maxPrice = Double.MIN_VALUE;
         for (int i = 0; i < displayCount; i++) {
-            KLine line = kLines.get(startIndex +  i);
+            KLine line = currentKLines.get(startIndex +  i);
             minPrice = Math.min(minPrice, line.getLow().doubleValue());
             maxPrice = Math.max(maxPrice, line.getHigh().doubleValue());
         }
@@ -181,30 +205,30 @@ public class KLineChartPane {
         minPriceValue = minPrice;
         maxPriceValue = maxPrice;
         
+        final double candleWidth = (canvasWidth - CHART_MARGIN_LEFT - CHART_MARGIN_RIGHT) / CANDLE_MAX_SIZE;
+        
         gc.setStroke(Color.web("#333"));
         gc.setLineWidth(0.5);
         
         for (int i = 0; i <= 5; i++) {
-            double y = 50 + i * (CANVAS_HEIGHT - 100) / 5.0;
-            gc.strokeLine(60, y, CANVAS_WIDTH - 20, y);
+            double y = CHART_MARGIN_TOP + i * (CANVAS_HEIGHT - CHART_MARGIN_TOP - CHART_MARGIN_BOTTOM) / 5.0;
+            gc.strokeLine(CHART_MARGIN_LEFT, y, canvasWidth - CHART_MARGIN_RIGHT, y);
             
             double price = maxPrice - i * priceRange / 5.0;
             gc.setFill(Color.web("#888"));
-            gc.fillText(String.format("%.2f", price), 5, (int)y + 4);
+            gc.fillText(String.format("%.2f", price), 0, (int)y + 4);
         }
         
-        double candleWidth = (CANVAS_WIDTH - 80.0) / 50;
-        
         for (int i = 0; i <= displayCount; i += 10) {
-            double x = 60 + i * candleWidth;
-            gc.strokeLine(x, 50, x, CANVAS_HEIGHT - 50);
+            double x = CHART_MARGIN_LEFT + i * candleWidth;
+            gc.strokeLine(x, CHART_MARGIN_TOP, x, CANVAS_HEIGHT - CHART_MARGIN_BOTTOM);
         }
 
         
         for (int i = 0; i < displayCount; i++) {
-            KLine line = kLines.get(startIndex + i);
+            KLine line = currentKLines.get(startIndex + i);
             
-            double x = 60 + i * candleWidth + candleWidth / 2;
+            double x = CHART_MARGIN_LEFT + i * candleWidth + candleWidth / 2;
             
             double open, close, high, low;
             open = line.getOpen().doubleValue();
@@ -212,10 +236,10 @@ public class KLineChartPane {
             high = line.getHigh().doubleValue();
             low = line.getLow().doubleValue();
             
-            double yOpen = 50 + (maxPrice - open) / priceRange * (CANVAS_HEIGHT - 100);
-            double yClose = 50 + (maxPrice - close) / priceRange * (CANVAS_HEIGHT - 100);
-            double yHigh = 50 + (maxPrice - high) / priceRange * (CANVAS_HEIGHT - 100);
-            double yLow = 50 + (maxPrice - low) / priceRange * (CANVAS_HEIGHT - 100);
+            double yOpen = CHART_MARGIN_TOP + (maxPrice - open) / priceRange * (CANVAS_HEIGHT - CHART_MARGIN_TOP - CHART_MARGIN_BOTTOM);
+            double yClose = CHART_MARGIN_TOP + (maxPrice - close) / priceRange * (CANVAS_HEIGHT - CHART_MARGIN_TOP - CHART_MARGIN_BOTTOM);
+            double yHigh = CHART_MARGIN_TOP + (maxPrice - high) / priceRange * (CANVAS_HEIGHT - CHART_MARGIN_TOP - CHART_MARGIN_BOTTOM);
+            double yLow = CHART_MARGIN_TOP + (maxPrice - low) / priceRange * (CANVAS_HEIGHT - CHART_MARGIN_TOP - CHART_MARGIN_BOTTOM);
             
             boolean isRising = close >= open;
             Color color = isRising ? Color.web("#ff3333") : Color.web("#00A000");
@@ -234,12 +258,36 @@ public class KLineChartPane {
             
             if (i % 10 == 0) {
                 gc.setFill(Color.web("#888"));
-                gc.fillText(line.getLabel(), (int)x - 15, CANVAS_HEIGHT - 30);
+                double len = line.getLabel().length()/2.0 * gc.getFont().getSize();
+                gc.fillText(line.getLabel(), (int)(x - len) + 10, CANVAS_HEIGHT - CHART_MARGIN_BOTTOM + 20);
             }
+        }
+        
+        // 画开盘价线和当前价线
+        if (openPrice != null && priceRange > 0) {
+            double openY = CHART_MARGIN_TOP + (maxPrice - openPrice.doubleValue()) / priceRange * (CANVAS_HEIGHT - CHART_MARGIN_TOP - CHART_MARGIN_BOTTOM);
+            gc.setStroke(Color.WHITE);
+            gc.setLineWidth(1);
+            gc.setLineDashes(5, 5);
+            gc.strokeLine(CHART_MARGIN_LEFT, openY, canvasWidth - CHART_MARGIN_RIGHT, openY);
+            gc.setLineDashes(null);
+            gc.setFill(Color.WHITE);
+            gc.fillText(String.format("%.2f", openPrice), 0, (int)openY + 4);
+        }
+        
+        if (currentPrice != null && priceRange > 0) {
+            double currentY = CHART_MARGIN_TOP + (maxPrice - currentPrice.doubleValue()) / priceRange * (CANVAS_HEIGHT - CHART_MARGIN_TOP - CHART_MARGIN_BOTTOM);
+            gc.setStroke(Color.web("#FFD700"));
+            gc.setLineWidth(1);
+            gc.setLineDashes(5, 5);
+            gc.strokeLine(CHART_MARGIN_LEFT, currentY, canvasWidth - CHART_MARGIN_RIGHT, currentY);
+            gc.setLineDashes(null);
+            gc.setFill(Color.web("#FFD700"));
+            gc.fillText(String.format("%.2f", currentPrice), 0, (int)currentY - 5);
         }
         
         gc.setStroke(Color.web("#555"));
         gc.setLineWidth(1);
-        gc.strokeRect(60, 50, CANVAS_WIDTH - 80, CANVAS_HEIGHT - 100);
+        gc.strokeRect(CHART_MARGIN_LEFT, CHART_MARGIN_TOP, canvasWidth - CHART_MARGIN_LEFT - CHART_MARGIN_RIGHT, CANVAS_HEIGHT - CHART_MARGIN_TOP - CHART_MARGIN_BOTTOM);
     }
 }
