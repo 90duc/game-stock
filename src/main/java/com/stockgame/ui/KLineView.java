@@ -66,12 +66,12 @@ public class KLineView {
     private ToggleButton createPeriodButton(String text, String period) {
         ToggleButton btn = new ToggleButton(text);
         btn.setToggleGroup(periodGroup);
-        btn.setStyle("-fx-background-color: #333; -fx-text-fill: white; -fx-min-width: 60;");
+        btn.setStyle("-fx-background-color: #1a1a1a; -fx-text-fill: white; -fx-min-width: 60;");
         btn.selectedProperty().addListener((obs, wasSelected, isSelected) -> {
             if (isSelected) {
-                btn.setStyle("-fx-background-color: #FF9800; -fx-text-fill: white; -fx-min-width: 60;");
+                btn.setStyle("-fx-background-color: #e67e22; -fx-text-fill: white; -fx-min-width: 60;");
             } else {
-                btn.setStyle("-fx-background-color: #333; -fx-text-fill: white; -fx-min-width: 60;");
+                btn.setStyle("-fx-background-color: #1a1a1a; -fx-text-fill: white; -fx-min-width: 60;");
             }
         });
         btn.setOnAction(e -> {

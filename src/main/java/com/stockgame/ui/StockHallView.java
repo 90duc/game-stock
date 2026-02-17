@@ -15,6 +15,7 @@ import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
+import javafx.util.Callback;
 
 import java.math.BigDecimal;
 import java.sql.SQLException;
@@ -31,6 +32,10 @@ public class StockHallView {
     private final Map<Long, Stage> tradeStages = new HashMap<>();
     private final ObservableList<Stock> stockList = FXCollections.observableArrayList();
     
+    private static final String FX_BG_ONE = "-fx-background-color: #0d0d0d;";
+    private static final String FX_BG_TWO = "-fx-background-color: #1a1a1a;";
+    private static final String FX_BG_HEADER = "-fx-background-color: #e67e22; -fx-text-fill:white;";
+    
     public StockHallView(StockTradingService tradingService, User currentUser) {
         this.tradingService = tradingService;
         this.currentUser = currentUser;
@@ -40,31 +45,52 @@ public class StockHallView {
     private VBox createView() {
         VBox root = new VBox(10);
         root.setPadding(new Insets(10));
-        
+        root.setStyle("-fx-background-color: #0a0a0a;");
         // 标题
         Label titleLabel = new Label("股票交易大厅");
-        titleLabel.setStyle("-fx-font-size: 24px; -fx-font-weight: bold;");
+        titleLabel.setStyle("-fx-font-size: 24px; -fx-font-weight: bold;-fx-text-fill:white;");
         
         // 股票列表
         stockTable = new TableView<>(stockList);
         stockTable.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
-        stockTable.setStyle("-fx-focus-color: transparent; -fx-faint-focus-color: transparent;");
+        stockTable.setStyle(FX_BG_ONE + "-fx-text-fill:white;");
         stockTable.setSelectionModel(null);
         
         TableColumn<Stock, String> codeCol = new TableColumn<>("股票代码");
+        codeCol.setStyle(FX_BG_HEADER);
+        Callback<TableColumn<Stock, String>, TableCell<Stock, String>> tableCellCallback = col -> new TableCell<Stock, String>() {
+            @Override
+            protected void updateItem(String item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) {
+                    setText(null);
+                } else {
+                    setText(item);
+                    setTextFill(Color.WHITE);
+                }
+                setStyle(getIndex() % 2 == 0 ? FX_BG_ONE : FX_BG_TWO);
+            }
+        };
+        codeCol.setCellFactory(tableCellCallback);
         codeCol.setCellValueFactory(data -> new SimpleStringProperty(data.getValue().getStockCode()));
         codeCol.setPrefWidth(50);
         
         TableColumn<Stock, String> nameCol = new TableColumn<>("股票名称");
+        nameCol.setStyle(FX_BG_HEADER);
+        nameCol.setCellFactory(tableCellCallback);
         nameCol.setCellValueFactory(data -> new SimpleStringProperty(data.getValue().getStockName()));
         nameCol.setPrefWidth(60);
         
         TableColumn<Stock, String> priceCol = new TableColumn<>("当前价格");
+        priceCol.setStyle(FX_BG_HEADER);
+        priceCol.setCellFactory(tableCellCallback);
         priceCol.setCellValueFactory(data -> new SimpleStringProperty(
                 data.getValue().getCurrentPrice().toString()));
         priceCol.setPrefWidth(70);
         
         TableColumn<Stock, String> prevCloseCol = new TableColumn<>("开盘价");
+        prevCloseCol.setStyle(FX_BG_HEADER);
+        prevCloseCol.setCellFactory(tableCellCallback);
         prevCloseCol.setCellValueFactory(data -> {
             BigDecimal lastGameOpenPrice = null;
             try {
@@ -77,6 +103,26 @@ public class StockHallView {
         prevCloseCol.setPrefWidth(60);
         
         TableColumn<Stock, String> changeCol = new TableColumn<>("涨跌幅");
+        changeCol.setStyle(FX_BG_HEADER);
+        changeCol.setCellFactory(column -> new TableCell<Stock, String>() {
+            @Override
+            protected void updateItem(String item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) {
+                    setText(null);
+                } else {
+                    setText(item);
+                    if (item.startsWith("-")) {
+                        setTextFill(Color.GREEN);
+                    } else if (item.startsWith("0.00%")) {
+                        setTextFill(Color.WHITE);
+                    } else {
+                        setTextFill(Color.RED);
+                    }
+                }
+                setStyle(getIndex() % 2 == 0 ? FX_BG_ONE : FX_BG_TWO);
+            }
+        });
         changeCol.setCellValueFactory(data -> {
             Stock stock = data.getValue();
             BigDecimal basePrice = null;
@@ -93,28 +139,11 @@ public class StockHallView {
                     .multiply(BigDecimal.valueOf(100));
             return new SimpleStringProperty(String.format("%.2f%%", changePercent));
         });
-        changeCol.setCellFactory(column -> new TableCell<Stock, String>() {
-            @Override
-            protected void updateItem(String item, boolean empty) {
-                super.updateItem(item, empty);
-                if (empty || item == null) {
-                    setText(null);
-                    setTextFill(Color.BLACK);
-                } else {
-                    setText(item);
-                    if (item.startsWith("-")) {
-                        setTextFill(Color.GREEN);
-                    } else if (item.startsWith("0.00%")) {
-                        setTextFill(Color.BLACK);
-                    } else {
-                        setTextFill(Color.RED);
-                    }
-                }
-            }
-        });
         changeCol.setPrefWidth(60);
         
         TableColumn<Stock, String> statusCol = new TableColumn<>("状态");
+        statusCol.setStyle(FX_BG_HEADER);
+        statusCol.setCellFactory(tableCellCallback);
         statusCol.setCellValueFactory(data -> new SimpleStringProperty(
                 data.getValue().getIsTrading() ? "交易中" : "未开始"));
         statusCol.setPrefWidth(50);
@@ -123,6 +152,7 @@ public class StockHallView {
         TableColumn<Stock, Void> actionCol = new TableColumn<>("操作");
         actionCol.setMinWidth(145);
         actionCol.setMaxWidth(145);
+        actionCol.setStyle(FX_BG_HEADER);
         actionCol.setResizable(false);
         actionCol.setCellFactory(column -> new TableCell<Stock, Void>() {
             private final Button enterBtn = new Button("进入游戏");
@@ -160,11 +190,13 @@ public class StockHallView {
                 } else {
                     setGraphic(btnBox);
                 }
+
+                setStyle(getIndex() % 2 == 0 ? FX_BG_ONE : FX_BG_TWO);
             }
         });
         
         stockTable.getColumns().addAll(codeCol, nameCol, priceCol, prevCloseCol, changeCol, statusCol, actionCol);
-        
+
         // 状态栏
         statusLabel = new Label("就绪");
         statusLabel.setStyle("-fx-font-size: 12px;");
@@ -189,21 +221,6 @@ public class StockHallView {
     public void refresh() throws SQLException {
         List<Stock> stocks = tradingService.getAllStocks();
         stockList.setAll(stocks);
-    }
-    
-    private void startGameForStock(Stock stock) {
-        if (stock.getIsTrading()) {
-            showAlert("该股票游戏正在进行中");
-            return;
-        }
-        
-        try {
-            tradingService.startGame(stock.getId());
-            showAlert("游戏已开始！");
-            refresh();
-        } catch (Exception e) {
-            showAlert("开始游戏失败: " + e.getMessage());
-        }
     }
     
     private void openTradeViewForStock(Stock stock) {

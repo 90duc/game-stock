@@ -16,6 +16,7 @@ import javafx.scene.paint.Color;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.stage.Window;
+import javafx.util.Callback;
 
 import java.math.BigDecimal;
 import java.sql.SQLException;
@@ -23,9 +24,9 @@ import java.util.List;
 import java.util.Optional;
 
 public class TradeView {
-    public static final String FX_BACKGROUND_COLOR_ONE = "-fx-background-color: #989898;";
-    public static final String FX_BACKGROUND_COLOR_TWO = "-fx-background-color: #787878;";
-    public static final String FX_BACKGROUND_COLOR_HEADER = "-fx-background-color: #F09A00; -fx-text-fill:white;";
+    public static final String FX_BACKGROUND_COLOR_ONE = "-fx-background-color: #0d0d0d;";
+    public static final String FX_BACKGROUND_COLOR_TWO = "-fx-background-color: #1a1a1a;";
+    public static final String FX_BACKGROUND_COLOR_HEADER = "-fx-background-color: #e67e22; -fx-text-fill:white;";
     private final StockTradingService tradingService;
     private final User currentUser;
     private Stock stock;
@@ -78,12 +79,12 @@ public class TradeView {
         ToggleButton btn = new ToggleButton(text);
         btn.setToggleGroup(group);
         btn.setPrefWidth(50);
-        btn.setStyle("-fx-font-size: 11px; -fx-background-color: #333; -fx-text-fill: white;");
+        btn.setStyle("-fx-font-size: 11px; -fx-background-color: #1a1a1a; -fx-text-fill: white;");
         btn.selectedProperty().addListener((obs, wasSelected, isSelected) -> {
             if (isSelected) {
-                btn.setStyle("-fx-font-size: 11px; -fx-background-color: #FF9800; -fx-text-fill: white;");
+                btn.setStyle("-fx-font-size: 11px; -fx-background-color: #e67e22; -fx-text-fill: white;");
             } else {
-                btn.setStyle("-fx-font-size: 11px; -fx-background-color: #333; -fx-text-fill: white;");
+                btn.setStyle("-fx-font-size: 11px; -fx-background-color: #1a1a1a; -fx-text-fill: white;");
             }
         });
         btn.setOnAction(e -> {
@@ -104,12 +105,12 @@ public class TradeView {
         ToggleButton btn = new ToggleButton(text);
         btn.setToggleGroup(group);
         btn.setPrefWidth(50);
-        btn.setStyle("-fx-font-size: 11px; -fx-background-color: #333; -fx-text-fill: white;");
+        btn.setStyle("-fx-font-size: 11px; -fx-background-color: #1a1a1a; -fx-text-fill: white;");
         btn.selectedProperty().addListener((obs, wasSelected, isSelected) -> {
             if (isSelected) {
-                btn.setStyle("-fx-font-size: 11px; -fx-background-color: #FF9800; -fx-text-fill: white;");
+                btn.setStyle("-fx-font-size: 11px; -fx-background-color: #e67e22; -fx-text-fill: white;");
             } else {
-                btn.setStyle("-fx-font-size: 11px; -fx-background-color: #333; -fx-text-fill: white;");
+                btn.setStyle("-fx-font-size: 11px; -fx-background-color: #1a1a1a; -fx-text-fill: white;");
             }
         });
         btn.setOnAction(e -> {
@@ -653,7 +654,7 @@ public class TradeView {
         Button viewKLineBtn = new Button("查看K线");
         viewKLineBtn.setPrefWidth(80);
         viewKLineBtn.setPrefHeight(35);
-        viewKLineBtn.setStyle("-fx-background-color: #FF9800; -fx-text-fill: white; -fx-font-size: 14px;");
+        viewKLineBtn.setStyle("-fx-background-color: #e67e22; -fx-text-fill: white; -fx-font-size: 14px;");
         viewKLineBtn.setOnAction(e -> showKLineView());
         
         // 重新开始/结束游戏按钮
@@ -711,81 +712,44 @@ public class TradeView {
 
         TableColumn<Order, String> typeCol = new TableColumn<>("类型");
         typeCol.setStyle(FX_BACKGROUND_COLOR_HEADER);
-        typeCol.setCellFactory(col -> new TableCell<Order, String>() {
+
+        Callback<TableColumn<Order, String>, TableCell<Order, String>> tableColumnTableCellCallback = col -> new TableCell<Order, String>() {
             @Override
             protected void updateItem(String item, boolean empty) {
                 super.updateItem(item, empty);
                 if (item != null) {
                     setText(item);
-                    setTextFill(javafx.scene.paint.Color.WHITE);
+                    setTextFill(Color.WHITE);
                 }
                 setStyle(getIndex() % 2 == 0 ? FX_BACKGROUND_COLOR_ONE : FX_BACKGROUND_COLOR_TWO);
             }
-        });
+        };
+
+        typeCol.setCellFactory(tableColumnTableCellCallback);
         typeCol.setCellValueFactory(data -> new SimpleStringProperty(
                 Optional.ofNullable(data.getValue()).map(Order::getOrderType).map(Order.OrderType::getText).orElse("")));
         
         TableColumn<Order, String> priceTypeCol = new TableColumn<>("价格类型");
         priceTypeCol.setStyle(FX_BACKGROUND_COLOR_HEADER);
-        priceTypeCol.setCellFactory(col -> new TableCell<Order, String>() {
-            @Override
-            protected void updateItem(String item, boolean empty) {
-                super.updateItem(item, empty);
-                if (item != null) {
-                    setText(item);
-                    setTextFill(javafx.scene.paint.Color.WHITE);
-                }
-                setStyle(getIndex() % 2 == 0 ? FX_BACKGROUND_COLOR_ONE : FX_BACKGROUND_COLOR_TWO);
-            }
-        });
+        priceTypeCol.setCellFactory(tableColumnTableCellCallback);
         priceTypeCol.setCellValueFactory(data -> new SimpleStringProperty(
                 Optional.ofNullable(data.getValue()).map(Order::getPriceType).map(Order.OrderPriceType::getText).orElse("")));
         
         TableColumn<Order, String> priceCol = new TableColumn<>("价格");
         priceCol.setStyle(FX_BACKGROUND_COLOR_HEADER);
-        priceCol.setCellFactory(col -> new TableCell<Order, String>() {
-            @Override
-            protected void updateItem(String item, boolean empty) {
-                super.updateItem(item, empty);
-                if (item != null) {
-                    setText(item);
-                    setTextFill(javafx.scene.paint.Color.WHITE);
-                }
-                setStyle(getIndex() % 2 == 0 ? FX_BACKGROUND_COLOR_ONE : FX_BACKGROUND_COLOR_TWO);
-            }
-        });
+        priceCol.setCellFactory(tableColumnTableCellCallback);
         priceCol.setCellValueFactory(data -> new SimpleStringProperty(
                 Optional.ofNullable(data.getValue()).map(Order::getPrice).map(BigDecimal::toString).orElse("")));
         
         TableColumn<Order, String> qtyCol = new TableColumn<>("数量");
         qtyCol.setStyle(FX_BACKGROUND_COLOR_HEADER);
-        qtyCol.setCellFactory(col -> new TableCell<Order, String>() {
-            @Override
-            protected void updateItem(String item, boolean empty) {
-                super.updateItem(item, empty);
-                if (item != null) {
-                    setText(item);
-                    setTextFill(javafx.scene.paint.Color.WHITE);
-                }
-                setStyle(getIndex() % 2 == 0 ? FX_BACKGROUND_COLOR_ONE : FX_BACKGROUND_COLOR_TWO);
-            }
-        });
+        qtyCol.setCellFactory(tableColumnTableCellCallback);
         qtyCol.setCellValueFactory(data -> new SimpleStringProperty(
                 Optional.ofNullable(data.getValue()).map(Order::getQuantity).map(String::valueOf).orElse("")));
         
         TableColumn<Order, String> statusCol = new TableColumn<>("状态");
         statusCol.setStyle(FX_BACKGROUND_COLOR_HEADER);
-        statusCol.setCellFactory(col -> new TableCell<Order, String>() {
-            @Override
-            protected void updateItem(String item, boolean empty) {
-                super.updateItem(item, empty);
-                if (item != null) {
-                    setText(item);
-                    setTextFill(javafx.scene.paint.Color.WHITE);
-                }
-                setStyle(getIndex() % 2 == 0 ? FX_BACKGROUND_COLOR_ONE : FX_BACKGROUND_COLOR_TWO);
-            }
-        });
+        statusCol.setCellFactory(tableColumnTableCellCallback);
         statusCol.setCellValueFactory(data -> new SimpleStringProperty(
                 Optional.ofNullable(data.getValue()).map(Order::getStatus).map(Order.OrderStatus::getText).orElse("")));
         
@@ -827,7 +791,7 @@ public class TradeView {
         Button viewKLineBtn = new Button("查看K线");
         viewKLineBtn.setPrefWidth(80);
         viewKLineBtn.setPrefHeight(35);
-        viewKLineBtn.setStyle("-fx-background-color: #FF9800; -fx-text-fill: white; -fx-font-size: 14px;");
+        viewKLineBtn.setStyle("-fx-background-color: #e67e22; -fx-text-fill: white; -fx-font-size: 14px;");
         viewKLineBtn.setOnAction(e -> showKLineView());
         
         // 创建开始游戏按钮
