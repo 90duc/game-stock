@@ -61,7 +61,6 @@ public class KLineChartPane {
     
     private VBox createView() {
         VBox root = new VBox(0);
-        root.setStyle("-fx-background-color: #1a1a1a;");
         root.setMinWidth(650);
         root.setMinHeight(CANVAS_HEIGHT + 30);
         
@@ -275,23 +274,23 @@ public class KLineChartPane {
         // 画开盘价线和当前价线
         if (openPrice != null && priceRange > 0) {
             double openY = CHART_MARGIN_TOP + (maxPrice - openPrice.doubleValue()) / priceRange * (CANVAS_HEIGHT - CHART_MARGIN_TOP - CHART_MARGIN_BOTTOM);
-            gc.setStroke(Color.WHITE);
+            gc.setStroke(Color.web("#888888"));
             gc.setLineWidth(1);
             gc.setLineDashes(5, 5);
             gc.strokeLine(CHART_MARGIN_LEFT, openY, canvasWidth - CHART_MARGIN_RIGHT, openY);
             gc.setLineDashes(null);
-            gc.setFill(Color.WHITE);
+            gc.setFill(Color.web("#888888"));
             gc.fillText(String.format("%.2f", openPrice), CHART_MARGIN_LEFT_OFFSET, (int)openY + 4);
         }
         
         if (currentPrice != null && priceRange > 0) {
             double currentY = CHART_MARGIN_TOP + (maxPrice - currentPrice.doubleValue()) / priceRange * (CANVAS_HEIGHT - CHART_MARGIN_TOP - CHART_MARGIN_BOTTOM);
-            gc.setStroke(Color.web("#FFD700"));
+            gc.setStroke(Color.web("#B8860B"));
             gc.setLineWidth(1);
             gc.setLineDashes(5, 5);
             gc.strokeLine(CHART_MARGIN_LEFT, currentY, canvasWidth - CHART_MARGIN_RIGHT, currentY);
             gc.setLineDashes(null);
-            gc.setFill(Color.web("#FFD700"));
+            gc.setFill(Color.web("#B8860B"));
             gc.fillText(String.format("%.2f", currentPrice), CHART_MARGIN_LEFT_OFFSET, (int)currentY - 5);
         }
         

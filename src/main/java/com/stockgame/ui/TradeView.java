@@ -129,6 +129,7 @@ public class TradeView {
         // 游戏进行中，先创建view，再使用rebuildTradingView
         view = new VBox(10);
         view.setPadding(new Insets(10));
+        view.setStyle("-fx-background-color: #1a1a1a;");
         rebuildTradingView();
         return view;
     }
@@ -317,19 +318,19 @@ public class TradeView {
         javafx.scene.text.TextFlow leftFlow = new javafx.scene.text.TextFlow();
         
         javafx.scene.text.Text t1 = new javafx.scene.text.Text("当前价格: ");
-        t1.setFill(javafx.scene.paint.Color.BLACK);
+        t1.setFill(javafx.scene.paint.Color.WHITE);
         
         javafx.scene.text.Text t2 = new javafx.scene.text.Text(String.format("%.2f", currentPrice));
         t2.setFill(javafx.scene.paint.Color.web(changeColor));
         
         javafx.scene.text.Text t3 = new javafx.scene.text.Text("(");
-        t3.setFill(javafx.scene.paint.Color.BLACK);
+        t3.setFill(javafx.scene.paint.Color.WHITE);
         
         javafx.scene.text.Text t4 = new javafx.scene.text.Text(changeStr);
         t4.setFill(javafx.scene.paint.Color.web(changeColor));
         
         javafx.scene.text.Text t5 = new javafx.scene.text.Text(")");
-        t5.setFill(javafx.scene.paint.Color.BLACK);
+        t5.setFill(javafx.scene.paint.Color.WHITE);
         
         leftFlow.getChildren().addAll(t1, t2, t3, t4, t5);
         leftFlow.setPrefWidth(180);
@@ -338,10 +339,10 @@ public class TradeView {
         javafx.scene.text.TextFlow rightFlow = new javafx.scene.text.TextFlow();
         
         javafx.scene.text.Text t6 = new javafx.scene.text.Text("开盘价:");
-        t6.setFill(javafx.scene.paint.Color.BLACK);
+        t6.setFill(javafx.scene.paint.Color.WHITE);
         
         javafx.scene.text.Text t7 = new javafx.scene.text.Text(openPrice.toString());
-        t7.setFill(javafx.scene.paint.Color.BLACK);
+        t7.setFill(javafx.scene.paint.Color.WHITE);
         
         rightFlow.getChildren().addAll(t6, t7);
         
@@ -587,9 +588,9 @@ public class TradeView {
         // 左侧：标题和价格
         VBox titleBox = new VBox(5);
         Label titleLabel = new Label(stock.getStockName() + " (" + stock.getStockCode() + ")");
-        titleLabel.setStyle("-fx-font-size: 20px; -fx-font-weight: bold;");
+        titleLabel.setStyle("-fx-font-size: 20px; -fx-font-weight: bold; -fx-text-fill: white;");
         priceLabel = new Label();
-        priceLabel.setStyle("-fx-font-size: 14px;");
+        priceLabel.setStyle("-fx-font-size: 14px; -fx-text-fill: white;");
         updatePriceLabel(stock);
         titleBox.getChildren().addAll(titleLabel, priceLabel);
         HBox.setHgrow(titleBox, Priority.ALWAYS);
@@ -656,7 +657,7 @@ public class TradeView {
         orderHeader.setAlignment(Pos.CENTER_LEFT);
         
         Label orderListLabel = new Label("当前挂单");
-        orderListLabel.setStyle("-fx-font-size: 14px; -fx-font-weight: bold;");
+        orderListLabel.setStyle("-fx-font-size: 14px; -fx-font-weight: bold; -fx-text-fill: white;");
         HBox.setHgrow(orderListLabel, Priority.ALWAYS);
         
         Button cancelBtn = new Button("撤销选中挂单");
@@ -667,24 +668,75 @@ public class TradeView {
         orderTable = new TableView<>();
         orderTable.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
         orderTable.setPrefHeight(180);
+        orderTable.setStyle("-fx-background-color: #2a2a2a; -fx-text-fill: white;");
         
         TableColumn<Order, String> typeCol = new TableColumn<>("类型");
+        typeCol.setCellFactory(col -> new TableCell<Order, String>() {
+            @Override
+            protected void updateItem(String item, boolean empty) {
+                super.updateItem(item, empty);
+                if (item != null) {
+                    setText(item);
+                    setTextFill(javafx.scene.paint.Color.WHITE);
+                }
+            }
+        });
         typeCol.setCellValueFactory(data -> new SimpleStringProperty(
                 Optional.ofNullable(data.getValue()).map(Order::getOrderType).map(Order.OrderType::getText).orElse("")));
         
         TableColumn<Order, String> priceTypeCol = new TableColumn<>("价格类型");
+        priceTypeCol.setCellFactory(col -> new TableCell<Order, String>() {
+            @Override
+            protected void updateItem(String item, boolean empty) {
+                super.updateItem(item, empty);
+                if (item != null) {
+                    setText(item);
+                    setTextFill(javafx.scene.paint.Color.WHITE);
+                }
+            }
+        });
         priceTypeCol.setCellValueFactory(data -> new SimpleStringProperty(
                 Optional.ofNullable(data.getValue()).map(Order::getPriceType).map(Order.OrderPriceType::getText).orElse("")));
         
         TableColumn<Order, String> priceCol = new TableColumn<>("价格");
+        priceCol.setCellFactory(col -> new TableCell<Order, String>() {
+            @Override
+            protected void updateItem(String item, boolean empty) {
+                super.updateItem(item, empty);
+                if (item != null) {
+                    setText(item);
+                    setTextFill(javafx.scene.paint.Color.WHITE);
+                }
+            }
+        });
         priceCol.setCellValueFactory(data -> new SimpleStringProperty(
                 Optional.ofNullable(data.getValue()).map(Order::getPrice).map(BigDecimal::toString).orElse("")));
         
         TableColumn<Order, String> qtyCol = new TableColumn<>("数量");
+        qtyCol.setCellFactory(col -> new TableCell<Order, String>() {
+            @Override
+            protected void updateItem(String item, boolean empty) {
+                super.updateItem(item, empty);
+                if (item != null) {
+                    setText(item);
+                    setTextFill(javafx.scene.paint.Color.WHITE);
+                }
+            }
+        });
         qtyCol.setCellValueFactory(data -> new SimpleStringProperty(
                 Optional.ofNullable(data.getValue()).map(Order::getQuantity).map(String::valueOf).orElse("")));
         
         TableColumn<Order, String> statusCol = new TableColumn<>("状态");
+        statusCol.setCellFactory(col -> new TableCell<Order, String>() {
+            @Override
+            protected void updateItem(String item, boolean empty) {
+                super.updateItem(item, empty);
+                if (item != null) {
+                    setText(item);
+                    setTextFill(javafx.scene.paint.Color.WHITE);
+                }
+            }
+        });
         statusCol.setCellValueFactory(data -> new SimpleStringProperty(
                 Optional.ofNullable(data.getValue()).map(Order::getStatus).map(Order.OrderStatus::getText).orElse("")));
         
@@ -701,6 +753,7 @@ public class TradeView {
     private VBox createGameEndedView() {
         VBox root = new VBox(10);
         root.setPadding(new Insets(10));
+        root.setStyle("-fx-background-color: #1a1a1a;");
         
         // 查询最后一次游戏的sessionId（该用户该股票的最后一次游戏）
         sessionId = getLastSessionId();
@@ -711,9 +764,9 @@ public class TradeView {
         
         VBox titleBox = new VBox(5);
         Label titleLabel = new Label(stock.getStockName() + " (" + stock.getStockCode() + ")");
-        titleLabel.setStyle("-fx-font-size: 20px; -fx-font-weight: bold;");
+        titleLabel.setStyle("-fx-font-size: 20px; -fx-font-weight: bold; -fx-text-fill: white;");
         priceLabel = new Label();
-        priceLabel.setStyle("-fx-font-size: 14px;");
+        priceLabel.setStyle("-fx-font-size: 14px; -fx-text-fill: white;");
         updatePriceLabel(stock);
         titleBox.getChildren().addAll(titleLabel, priceLabel);
         HBox.setHgrow(titleBox, Priority.ALWAYS);
@@ -739,7 +792,7 @@ public class TradeView {
         topPanel.getChildren().addAll(titleBox, buttonBox);
         
         Label historyLabel = new Label("本局游戏走势图");
-        historyLabel.setStyle("-fx-font-size: 14px; -fx-text-fill: #666;");
+        historyLabel.setStyle("-fx-font-size: 14px; -fx-text-fill: white;");
         
         // K线类型选择按钮（使用历史数据专用按钮）
         HBox klineTypeBox = new HBox(5);
@@ -772,7 +825,7 @@ public class TradeView {
         VBox statsPanel = new VBox(5);
         
         Label statsLabel = new Label("本局交易统计");
-        statsLabel.setStyle("-fx-font-size: 14px; -fx-font-weight: bold;");
+        statsLabel.setStyle("-fx-font-size: 14px; -fx-font-weight: bold; -fx-text-fill: white;");
         
         try {
             List<TradeRecord> tradeRecords = tradingService.getUserTradeRecords(currentUser.getId());
@@ -796,7 +849,7 @@ public class TradeView {
             }
             
             Label statsContent = new Label(String.format("买入: %d 笔, 卖出: %d 笔", buyCount, sellCount));
-            statsContent.setStyle("-fx-font-size: 12px; -fx-text-fill: #666;");
+            statsContent.setStyle("-fx-font-size: 12px; -fx-text-fill: white;");
             statsPanel.getChildren().addAll(statsLabel, statsContent);
         } catch (SQLException e) {
             Label errorLabel = new Label("加载交易统计失败");
