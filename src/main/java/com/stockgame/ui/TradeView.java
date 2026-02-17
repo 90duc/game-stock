@@ -23,6 +23,9 @@ import java.util.List;
 import java.util.Optional;
 
 public class TradeView {
+    public static final String FX_BACKGROUND_COLOR_ONE = "-fx-background-color: #989898;";
+    public static final String FX_BACKGROUND_COLOR_TWO = "-fx-background-color: #787878;";
+    public static final String FX_BACKGROUND_COLOR_HEADER = "-fx-background-color: #F09A00; -fx-text-fill:white;";
     private final StockTradingService tradingService;
     private final User currentUser;
     private Stock stock;
@@ -186,6 +189,30 @@ public class TradeView {
                 BigDecimal price = limitBtn.isSelected() ? 
                         new BigDecimal(priceField.getText()) : stock.getCurrentPrice();
                 int qty = Integer.parseInt(qtyField.getText());
+                
+                // 前端验证价格范围
+                BigDecimal basePrice = stock.getPreviousClose();
+                BigDecimal maxPrice = basePrice.multiply(new BigDecimal("1.10")).setScale(2, java.math.RoundingMode.UP);
+                BigDecimal minPrice = basePrice.multiply(new BigDecimal("0.90")).setScale(2, java.math.RoundingMode.UP);
+                if (price.compareTo(maxPrice) > 0 || price.compareTo(minPrice) < 0) {
+                    Tooltip tooltip = new Tooltip("价格超出涨跌停范围: " + minPrice + " - " + maxPrice);
+                    tooltip.setAutoHide(true);
+                    tooltip.show(priceField, priceField.localToScreen(0, 0).getX(), priceField.localToScreen(0, 0).getY() + 30);
+                    return;
+                }
+                
+                // 前端验证余额
+                BigDecimal orderAmount = price.multiply(new BigDecimal(qty));
+                BigDecimal commission = orderAmount.multiply(new BigDecimal("0.00025"));
+                commission = commission.max(new BigDecimal("5"));
+                BigDecimal totalRequired = orderAmount.add(commission);
+                if (currentUser.getAvailableBalance().compareTo(totalRequired) < 0) {
+                    Tooltip tooltip = new Tooltip("可用余额不足，需要: " + totalRequired + " (含手续费)");
+                    tooltip.setAutoHide(true);
+                    tooltip.show(qtyField, qtyField.localToScreen(0, 0).getX(), qtyField.localToScreen(0, 0).getY() + 30);
+                    return;
+                }
+                
                 Order.OrderPriceType priceType = limitBtn.isSelected() ? 
                         Order.OrderPriceType.LIMIT : Order.OrderPriceType.MARKET;
                 
@@ -259,6 +286,18 @@ public class TradeView {
                 BigDecimal price = limitBtn.isSelected() ? 
                         new BigDecimal(priceField.getText()) : stock.getCurrentPrice();
                 int qty = Integer.parseInt(qtyField.getText());
+                
+                // 前端验证价格范围
+                BigDecimal basePrice = stock.getPreviousClose();
+                BigDecimal maxPrice = basePrice.multiply(new BigDecimal("1.10")).setScale(2, java.math.RoundingMode.UP);
+                BigDecimal minPrice = basePrice.multiply(new BigDecimal("0.90")).setScale(2, java.math.RoundingMode.UP);
+                if (price.compareTo(maxPrice) > 0 || price.compareTo(minPrice) < 0) {
+                    Tooltip tooltip = new Tooltip("价格超出涨跌停范围: " + minPrice + " - " + maxPrice);
+                    tooltip.setAutoHide(true);
+                    tooltip.show(priceField, priceField.localToScreen(0, 0).getX(), priceField.localToScreen(0, 0).getY() + 30);
+                    return;
+                }
+                
                 Order.OrderPriceType priceType = limitBtn.isSelected() ? 
                         Order.OrderPriceType.LIMIT : Order.OrderPriceType.MARKET;
                 
@@ -668,9 +707,10 @@ public class TradeView {
         orderTable = new TableView<>();
         orderTable.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
         orderTable.setPrefHeight(180);
-        orderTable.setStyle("-fx-background-color: #2a2a2a; -fx-text-fill: white;");
-        
+        orderTable.setStyle(FX_BACKGROUND_COLOR_ONE + "-fx-text-fill:white;");
+
         TableColumn<Order, String> typeCol = new TableColumn<>("类型");
+        typeCol.setStyle(FX_BACKGROUND_COLOR_HEADER);
         typeCol.setCellFactory(col -> new TableCell<Order, String>() {
             @Override
             protected void updateItem(String item, boolean empty) {
@@ -679,12 +719,14 @@ public class TradeView {
                     setText(item);
                     setTextFill(javafx.scene.paint.Color.WHITE);
                 }
+                setStyle(getIndex() % 2 == 0 ? FX_BACKGROUND_COLOR_ONE : FX_BACKGROUND_COLOR_TWO);
             }
         });
         typeCol.setCellValueFactory(data -> new SimpleStringProperty(
                 Optional.ofNullable(data.getValue()).map(Order::getOrderType).map(Order.OrderType::getText).orElse("")));
         
         TableColumn<Order, String> priceTypeCol = new TableColumn<>("价格类型");
+        priceTypeCol.setStyle(FX_BACKGROUND_COLOR_HEADER);
         priceTypeCol.setCellFactory(col -> new TableCell<Order, String>() {
             @Override
             protected void updateItem(String item, boolean empty) {
@@ -693,12 +735,14 @@ public class TradeView {
                     setText(item);
                     setTextFill(javafx.scene.paint.Color.WHITE);
                 }
+                setStyle(getIndex() % 2 == 0 ? FX_BACKGROUND_COLOR_ONE : FX_BACKGROUND_COLOR_TWO);
             }
         });
         priceTypeCol.setCellValueFactory(data -> new SimpleStringProperty(
                 Optional.ofNullable(data.getValue()).map(Order::getPriceType).map(Order.OrderPriceType::getText).orElse("")));
         
         TableColumn<Order, String> priceCol = new TableColumn<>("价格");
+        priceCol.setStyle(FX_BACKGROUND_COLOR_HEADER);
         priceCol.setCellFactory(col -> new TableCell<Order, String>() {
             @Override
             protected void updateItem(String item, boolean empty) {
@@ -707,12 +751,14 @@ public class TradeView {
                     setText(item);
                     setTextFill(javafx.scene.paint.Color.WHITE);
                 }
+                setStyle(getIndex() % 2 == 0 ? FX_BACKGROUND_COLOR_ONE : FX_BACKGROUND_COLOR_TWO);
             }
         });
         priceCol.setCellValueFactory(data -> new SimpleStringProperty(
                 Optional.ofNullable(data.getValue()).map(Order::getPrice).map(BigDecimal::toString).orElse("")));
         
         TableColumn<Order, String> qtyCol = new TableColumn<>("数量");
+        qtyCol.setStyle(FX_BACKGROUND_COLOR_HEADER);
         qtyCol.setCellFactory(col -> new TableCell<Order, String>() {
             @Override
             protected void updateItem(String item, boolean empty) {
@@ -721,12 +767,14 @@ public class TradeView {
                     setText(item);
                     setTextFill(javafx.scene.paint.Color.WHITE);
                 }
+                setStyle(getIndex() % 2 == 0 ? FX_BACKGROUND_COLOR_ONE : FX_BACKGROUND_COLOR_TWO);
             }
         });
         qtyCol.setCellValueFactory(data -> new SimpleStringProperty(
                 Optional.ofNullable(data.getValue()).map(Order::getQuantity).map(String::valueOf).orElse("")));
         
         TableColumn<Order, String> statusCol = new TableColumn<>("状态");
+        statusCol.setStyle(FX_BACKGROUND_COLOR_HEADER);
         statusCol.setCellFactory(col -> new TableCell<Order, String>() {
             @Override
             protected void updateItem(String item, boolean empty) {
@@ -735,6 +783,7 @@ public class TradeView {
                     setText(item);
                     setTextFill(javafx.scene.paint.Color.WHITE);
                 }
+                setStyle(getIndex() % 2 == 0 ? FX_BACKGROUND_COLOR_ONE : FX_BACKGROUND_COLOR_TWO);
             }
         });
         statusCol.setCellValueFactory(data -> new SimpleStringProperty(
