@@ -565,6 +565,10 @@ public class StockTradingService {
         return orderDao.getByUserId(userId);
     }
     
+    public List<Order> getUserPendingOrders(Long userId, Long stockId) throws SQLException {
+        return orderDao.getPendingOrdersByUserAndStock(userId, stockId);
+    }
+    
     public List<Position> getUserPositions(Long userId) throws SQLException {
         return positionDao.getByUserId(userId);
     }

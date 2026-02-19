@@ -421,13 +421,8 @@ public class TradeView {
         Order selectedOrder = orderTable.getSelectionModel().getSelectedItem();
         Long selectedOrderId = selectedOrder != null ? selectedOrder.getId() : null;
         
-        List<Order> orders = tradingService.getUserOrders(currentUser.getId());
-        orderTable.getItems().setAll(
-            orders.stream()
-                .filter(o -> o.getStockId().equals(stock.getId()) && 
-                        o.getStatus() == Order.OrderStatus.PENDING)
-                .collect(java.util.stream.Collectors.toList())
-        );
+        List<Order> orders = tradingService.getUserPendingOrders(currentUser.getId(), updatedStock.getId());
+        orderTable.getItems().setAll(orders);
         
         // 恢复选中状态
         if (selectedOrderId != null) {

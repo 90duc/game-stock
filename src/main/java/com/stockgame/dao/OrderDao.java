@@ -54,6 +54,21 @@ public class OrderDao {
         return orders;
     }
     
+    public List<Order> getPendingOrdersByUserAndStock(Long userId, Long stockId) throws SQLException {
+        List<Order> orders = new ArrayList<>();
+        String sql = "SELECT * FROM orders WHERE user_id = ? AND stock_id = ? AND status = 'PENDING' ORDER BY created_at DESC";
+        try (Connection conn = DatabaseUtil.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setLong(1, userId);
+            stmt.setLong(2, stockId);
+            ResultSet rs = stmt.executeQuery();
+            while (rs.next()) {
+                orders.add(mapResultSet(rs));
+            }
+        }
+        return orders;
+    }
+    
     public List<Order> getByUserAndStock(Long userId, Long stockId) throws SQLException {
         List<Order> orders = new ArrayList<>();
         String sql = "SELECT * FROM orders WHERE user_id = ? AND stock_id = ? ORDER BY created_at DESC";
