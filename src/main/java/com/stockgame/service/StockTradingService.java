@@ -576,29 +576,32 @@ public class StockTradingService {
         return userDao.getById(userId);
     }
     
-    public List<DayKLine> getDayKLines(Long stockId, int limit) throws SQLException {
-        return dayKLineDao.getByStockId(stockId, limit);
+    public List<DayKLine> getDayKLines(Long stockId) throws SQLException {
+        return dayKLineDao.getByStockId(stockId, , Integer.MAX_VALUE);
     }
     
-    public List<WeekKLine> getWeekKLines(Long stockId, int limit) throws SQLException {
+    public List<WeekKLine> getWeekKLines(Long stockId) throws SQLException {
         List<DayKLine> dayKLines = dayKLineDao.getByStockId(stockId, Integer.MAX_VALUE);
-        return aggregateToWeekKLine(dayKLines, limit);
+        return aggregateToWeekKLine(dayKLines);
     }
     
-    public List<MonthKLine> getMonthKLines(Long stockId, int limit) throws SQLException {
+    public List<MonthKLine> getMonthKLines(Long stockId) throws SQLException {
         List<DayKLine> dayKLines = dayKLineDao.getByStockId(stockId, Integer.MAX_VALUE);
-        return aggregateToMonthKLine(dayKLines, limit);
+        return aggregateToMonthKLine(dayKLines);
     }
     
-    private List<WeekKLine> aggregateToWeekKLine(List<DayKLine> dayKLines, int limit) {
+    private List<WeekKLine> aggregateToWeekKLine(List<DayKLine> dayKLines) {
         if (dayKLines == null || dayKLines.isEmpty()) {
             return Collections.emptyList();
         }
         
+        // 按日期升序排序，确保周K线连续
+        List<DayKLine> sortedDays = new ArrayList<>(dayKLines);
+        
         List<WeekKLine> weekKLines = new ArrayList<>();
         Map<Integer, List<DayKLine>> weekGroups = new LinkedHashMap<>();
         
-        for (DayKLine day : dayKLines) {
+        for (DayKLine day : sortedDays) {
             LocalDate date = day.getTradeDate();
             if (date == null) continue;
             int weekKey = date.getYear() * 100 + date.get(java.time.temporal.IsoFields.WEEK_OF_WEEK_BASED_YEAR);
@@ -607,7 +610,6 @@ public class StockTradingService {
         
         for (List<DayKLine> group : weekGroups.values()) {
             if (group.isEmpty()) continue;
-            Collections.sort(group, Comparator.comparing(DayKLine::getTradeDate));
             
             WeekKLine week = new WeekKLine();
             week.setStockId(group.get(0).getStockId());
@@ -631,20 +633,23 @@ public class StockTradingService {
             week.setVolume(group.stream().mapToLong(DayKLine::getVolume).sum());
             weekKLines.add(week);
         }
-        
-        Collections.reverse(weekKLines);
-        return weekKLines.stream().limit(limit).collect(java.util.stream.Collectors.toList());
+
+        return weekKLines;
     }
     
-    private List<MonthKLine> aggregateToMonthKLine(List<DayKLine> dayKLines, int limit) {
+    private List<MonthKLine> aggregateToMonthKLine(List<DayKLine> dayKLines) {
         if (dayKLines == null || dayKLines.isEmpty()) {
             return Collections.emptyList();
         }
         
+        // 按日期升序排序，确保月K线连续
+        List<DayKLine> sortedDays = new ArrayList<>(dayKLines);
+        sortedDays.sort(Comparator.comparing(DayKLine::getTradeDate));
+        
         List<MonthKLine> monthKLines = new ArrayList<>();
         Map<Integer, List<DayKLine>> monthGroups = new LinkedHashMap<>();
         
-        for (DayKLine day : dayKLines) {
+        for (DayKLine day : sortedDays) {
             LocalDate date = day.getTradeDate();
             if (date == null) continue;
             int monthKey = date.getYear() * 100 + date.getMonthValue();
@@ -653,7 +658,6 @@ public class StockTradingService {
         
         for (List<DayKLine> group : monthGroups.values()) {
             if (group.isEmpty()) continue;
-            Collections.sort(group, Comparator.comparing(DayKLine::getTradeDate));
             
             MonthKLine month = new MonthKLine();
             month.setStockId(group.get(0).getStockId());
@@ -678,8 +682,8 @@ public class StockTradingService {
             monthKLines.add(month);
         }
         
-        Collections.reverse(monthKLines);
-        return monthKLines.stream().limit(limit).collect(java.util.stream.Collectors.toList());
+
+        return monthKLines;
     }
     
     public List<IntradayKLine> getIntradayKLines(Long stockId, Long sessionId) throws SQLException {

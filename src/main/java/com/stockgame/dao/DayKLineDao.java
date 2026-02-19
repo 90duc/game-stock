@@ -13,7 +13,7 @@ public class DayKLineDao {
     
     public List<DayKLine> getByStockId(Long stockId, int limit) throws SQLException {
         List<DayKLine> lines = new ArrayList<>();
-        String sql = "SELECT * FROM day_kline WHERE stock_id = ? ORDER BY trade_date DESC LIMIT ?";
+        String sql = "SELECT * FROM day_kline WHERE stock_id = ? ORDER BY trade_date asc, id asc LIMIT ?";
         try (Connection conn = DatabaseUtil.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setLong(1, stockId);
@@ -27,7 +27,7 @@ public class DayKLineDao {
     }
     
     public DayKLine getLastKLine(Long stockId) throws SQLException {
-        String sql = "SELECT * FROM day_kline WHERE stock_id = ? ORDER BY trade_date DESC LIMIT 1";
+        String sql = "SELECT * FROM day_kline WHERE stock_id = ? ORDER BY trade_date DESC, id  DESC LIMIT 1";
         try (Connection conn = DatabaseUtil.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setLong(1, stockId);

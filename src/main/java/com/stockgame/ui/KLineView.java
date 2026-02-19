@@ -87,18 +87,17 @@ public class KLineView {
             List<? extends KLine> kLines = null;
             
             if ("DAY".equals(period)) {
-                kLines = tradingService.getDayKLines(stock.getId(), Integer.MAX_VALUE);
+                kLines = tradingService.getDayKLines(stock.getId());
             } else if ("WEEK".equals(period)) {
-                kLines = tradingService.getWeekKLines(stock.getId(),  Integer.MAX_VALUE);
+                kLines = tradingService.getWeekKLines(stock.getId());
             } else if ("MONTH".equals(period)) {
-                kLines = tradingService.getMonthKLines(stock.getId(),  Integer.MAX_VALUE);
+                kLines = tradingService.getMonthKLines(stock.getId());
             }
 
             if(kLines == null){
                 kLines = new ArrayList<>();
             }
 
-            kLines.sort(Comparator.naturalOrder());
             chartPane.loadData(kLines);
 
         } catch (SQLException e) {
