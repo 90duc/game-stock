@@ -577,7 +577,7 @@ public class StockTradingService {
     }
     
     public List<DayKLine> getDayKLines(Long stockId) throws SQLException {
-        return dayKLineDao.getByStockId(stockId, , Integer.MAX_VALUE);
+        return dayKLineDao.getByStockId(stockId, Integer.MAX_VALUE);
     }
     
     public List<WeekKLine> getWeekKLines(Long stockId) throws SQLException {
