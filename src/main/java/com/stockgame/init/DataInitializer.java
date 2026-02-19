@@ -155,10 +155,11 @@ public class DataInitializer {
             generateIntradayKLines(stock, lastDayKLine);
         }
         
-        // 更新股票的上一个交易日
+        // 更新股票的当前价格和上一个交易日
         if (lastDayKLine != null) {
             stock.setLastKLineDate(lastDayKLine.getTradeDate());
-            stock.setPreviousClose(lastDayKLine.getClose());
+            stock.setPreviousClose(lastDayKLine.getOpen());
+            stock.setCurrentPrice(lastDayKLine.getClose());
             stockDao.update(stock);
         }
     }
