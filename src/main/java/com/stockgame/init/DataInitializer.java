@@ -168,7 +168,14 @@ public class DataInitializer {
         Random random = new Random();
         
         LocalDate tradeDate = lastDayKLine.getTradeDate();
-        BigDecimal currentPrice = lastDayKLine.getOpen();
+        BigDecimal openPrice = lastDayKLine.getOpen();
+        BigDecimal currentPrice = openPrice;
+        
+        // 计算涨跌停价格（±10%）
+        BigDecimal limitUpPrice = openPrice.multiply(BigDecimal.ONE.add(new BigDecimal("0.10")))
+                .setScale(2, RoundingMode.HALF_UP);
+        BigDecimal limitDownPrice = openPrice.multiply(BigDecimal.ONE.subtract(new BigDecimal("0.10")))
+                .setScale(2, RoundingMode.HALF_UP);
         
         // 创建一个已结束的游戏会话
         GameSession gameSession = new GameSession();
@@ -196,9 +203,18 @@ public class DataInitializer {
                 int min = minute % 60;
                 LocalDateTime time = tradeDate.atTime(hour, min);
                 
+                // 生成波动价格
                 double changePercent = (random.nextDouble() - 0.5) * 0.003;
                 currentPrice = currentPrice.multiply(BigDecimal.valueOf(1 + changePercent))
                         .setScale(2, RoundingMode.HALF_UP);
+                
+                // 确保价格在涨跌停范围内
+                if (currentPrice.compareTo(limitUpPrice) > 0) {
+                    currentPrice = limitUpPrice;
+                }
+                if (currentPrice.compareTo(limitDownPrice) < 0) {
+                    currentPrice = limitDownPrice;
+                }
                 
                 if (currentPrice.compareTo(high) > 0) high = currentPrice;
                 if (currentPrice.compareTo(low) < 0) low = currentPrice;
