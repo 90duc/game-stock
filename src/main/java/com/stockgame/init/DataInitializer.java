@@ -100,7 +100,6 @@ public class DataInitializer {
             stockDao.save(stock);
             System.out.println("创建股票: " + stock.getStockName() + " (" + stock.getStockCode() + "), 价格: " + price);
             
-            // 生成一年的K线数据
             generateKLines(stock, price);
         }
     }

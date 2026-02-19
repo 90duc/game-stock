@@ -581,12 +581,12 @@ public class StockTradingService {
     }
     
     public List<WeekKLine> getWeekKLines(Long stockId, int limit) throws SQLException {
-        List<DayKLine> dayKLines = dayKLineDao.getByStockId(stockId, 365);
+        List<DayKLine> dayKLines = dayKLineDao.getByStockId(stockId, Integer.MAX_VALUE);
         return aggregateToWeekKLine(dayKLines, limit);
     }
     
     public List<MonthKLine> getMonthKLines(Long stockId, int limit) throws SQLException {
-        List<DayKLine> dayKLines = dayKLineDao.getByStockId(stockId, 365);
+        List<DayKLine> dayKLines = dayKLineDao.getByStockId(stockId, Integer.MAX_VALUE);
         return aggregateToMonthKLine(dayKLines, limit);
     }
     
@@ -601,7 +601,7 @@ public class StockTradingService {
         for (DayKLine day : dayKLines) {
             LocalDate date = day.getTradeDate();
             if (date == null) continue;
-            int weekKey = date.getYear() * 100 + date.getDayOfYear() / 7;
+            int weekKey = date.getYear() * 100 + date.get(java.time.temporal.IsoFields.WEEK_OF_WEEK_BASED_YEAR);
             weekGroups.computeIfAbsent(weekKey, k -> new ArrayList<>()).add(day);
         }
         

@@ -187,12 +187,17 @@ public class TradeView {
         cancelBtn.setPrefWidth(80);
         submitBtn.setOnAction(e -> {
             try {
-                BigDecimal price = limitBtn.isSelected() ? 
-                        new BigDecimal(priceField.getText()) : stock.getCurrentPrice();
+                Stock latestStock = tradingService.getStockById(stock.getId());
+                BigDecimal price;
+                if (limitBtn.isSelected()) {
+                    price = new BigDecimal(priceField.getText());
+                } else {
+                    price = latestStock.getCurrentPrice();
+                    priceField.setText(price.toString());
+                }
                 int qty = Integer.parseInt(qtyField.getText());
                 
-                // 前端验证价格范围
-                BigDecimal basePrice = stock.getPreviousClose();
+                BigDecimal basePrice = latestStock.getPreviousClose();
                 BigDecimal maxPrice = basePrice.multiply(new BigDecimal("1.10")).setScale(2, java.math.RoundingMode.UP);
                 BigDecimal minPrice = basePrice.multiply(new BigDecimal("0.90")).setScale(2, java.math.RoundingMode.UP);
                 if (price.compareTo(maxPrice) > 0 || price.compareTo(minPrice) < 0) {
@@ -202,12 +207,12 @@ public class TradeView {
                     return;
                 }
                 
-                // 前端验证余额
                 BigDecimal orderAmount = price.multiply(new BigDecimal(qty));
                 BigDecimal commission = orderAmount.multiply(new BigDecimal("0.00025"));
                 commission = commission.max(new BigDecimal("5"));
                 BigDecimal totalRequired = orderAmount.add(commission);
-                if (currentUser.getAvailableBalance().compareTo(totalRequired) < 0) {
+                User latestUser = tradingService.getUser(currentUser.getId());
+                if (latestUser.getAvailableBalance().compareTo(totalRequired) < 0) {
                     Tooltip tooltip = new Tooltip("可用余额不足，需要: " + totalRequired + " (含手续费)");
                     tooltip.setAutoHide(true);
                     tooltip.show(qtyField, qtyField.localToScreen(0, 0).getX(), qtyField.localToScreen(0, 0).getY() + 30);
@@ -284,12 +289,17 @@ public class TradeView {
         cancelBtn.setPrefWidth(80);
         submitBtn.setOnAction(e -> {
             try {
-                BigDecimal price = limitBtn.isSelected() ? 
-                        new BigDecimal(priceField.getText()) : stock.getCurrentPrice();
+                Stock latestStock = tradingService.getStockById(stock.getId());
+                BigDecimal price;
+                if (limitBtn.isSelected()) {
+                    price = new BigDecimal(priceField.getText());
+                } else {
+                    price = latestStock.getCurrentPrice();
+                    priceField.setText(price.toString());
+                }
                 int qty = Integer.parseInt(qtyField.getText());
                 
-                // 前端验证价格范围
-                BigDecimal basePrice = stock.getPreviousClose();
+                BigDecimal basePrice = latestStock.getPreviousClose();
                 BigDecimal maxPrice = basePrice.multiply(new BigDecimal("1.10")).setScale(2, java.math.RoundingMode.UP);
                 BigDecimal minPrice = basePrice.multiply(new BigDecimal("0.90")).setScale(2, java.math.RoundingMode.UP);
                 if (price.compareTo(maxPrice) > 0 || price.compareTo(minPrice) < 0) {
