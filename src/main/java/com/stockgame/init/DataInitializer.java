@@ -6,8 +6,11 @@ import com.stockgame.util.DatabaseUtil;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
@@ -17,6 +20,8 @@ public class DataInitializer {
     private final UserDao userDao;
     private final StockDao stockDao;
     private final DayKLineDao dayKLineDao;
+    private final IntradayKLineDao intradayKLineDao;
+    private final GameSessionDao gameSessionDao;
     
     private static final String[] STOCK_NAMES = {
             "腾讯控股", "阿里巴巴", "中国平安", "招商银行", "茅台集团",
@@ -32,6 +37,8 @@ public class DataInitializer {
         this.userDao = new UserDao();
         this.stockDao = new StockDao();
         this.dayKLineDao = new DayKLineDao();
+        this.intradayKLineDao = new IntradayKLineDao();
+        this.gameSessionDao = new GameSessionDao();
     }
     
     public void initialize() {
@@ -143,13 +150,94 @@ public class DataInitializer {
         dayKLineDao.saveBatch(dayKLines);
         System.out.println("生成 " + stock.getStockName() + " 的日K线数据: " + dayKLines.size() + " 条");
 
+        // 生成最后一天的分时K线数据
+        DayKLine lastDayKLine = dayKLineDao.getLastKLine(stock.getId());
+        if (lastDayKLine != null) {
+            generateIntradayKLines(stock, lastDayKLine);
+        }
         
         // 更新股票的上一个交易日
-        if (!dayKLines.isEmpty()) {
-            DayKLine lastDayKLine = dayKLines.get(dayKLines.size() - 1);
+        if (lastDayKLine != null) {
             stock.setLastKLineDate(lastDayKLine.getTradeDate());
             stock.setPreviousClose(lastDayKLine.getClose());
             stockDao.update(stock);
+        }
+    }
+    
+    private void generateIntradayKLines(Stock stock, DayKLine lastDayKLine) throws SQLException {
+        List<IntradayKLine> intradayKLines = new ArrayList<>();
+        Random random = new Random();
+        
+        LocalDate tradeDate = lastDayKLine.getTradeDate();
+        BigDecimal currentPrice = lastDayKLine.getOpen();
+        
+        // 创建一个已结束的游戏会话
+        GameSession gameSession = new GameSession();
+        gameSession.setStockId(stock.getId());
+        gameSession.setStartTime(tradeDate.atTime(9, 30));
+        gameSession.setIsActive(false);
+        gameSession.setEndTime(tradeDate.atTime(15, 0));
+        gameSessionDao.save(gameSession);
+        // 手动设置is_active=0，因为save方法默认是true
+        gameSessionDao.endSession(gameSession.getId());
+        
+        // 9:30 - 11:30, 13:00 - 15:00
+        int[] startMinutes = {9 * 60 + 30, 13 * 60};
+        int[] endMinutes = {11 * 60 + 30, 15 * 60};
+        
+        BigDecimal high = currentPrice;
+        BigDecimal low = currentPrice;
+        
+        for (int session = 0; session < 2; session++) {
+            int minute = startMinutes[session];
+            int end = endMinutes[session];
+            
+            while (minute <= end) {
+                int hour = minute / 60;
+                int min = minute % 60;
+                LocalDateTime time = tradeDate.atTime(hour, min);
+                
+                double changePercent = (random.nextDouble() - 0.5) * 0.003;
+                currentPrice = currentPrice.multiply(BigDecimal.valueOf(1 + changePercent))
+                        .setScale(2, RoundingMode.HALF_UP);
+                
+                if (currentPrice.compareTo(high) > 0) high = currentPrice;
+                if (currentPrice.compareTo(low) < 0) low = currentPrice;
+                
+                IntradayKLine line = new IntradayKLine();
+                line.setStockId(stock.getId());
+                line.setTime(time);
+                line.setPrice(currentPrice);
+                line.setVolume((long) (random.nextInt(10000) + 1000));
+                line.setGameSessionId(gameSession.getId());
+                
+                intradayKLines.add(line);
+                minute++;
+            }
+        }
+        
+        for (IntradayKLine line : intradayKLines) {
+            intradayKLineDao.save(line);
+        }
+        System.out.println("生成 " + stock.getStockName() + " 的分时K线数据: " + intradayKLines.size() + " 条");
+        
+        // 根据分时数据更新日K线
+        lastDayKLine.setHigh(high);
+        lastDayKLine.setLow(low);
+        lastDayKLine.setClose(currentPrice);
+        updateDayKLine(lastDayKLine);
+    }
+    
+    private void updateDayKLine(DayKLine dayKLine) throws SQLException {
+        String sql = "UPDATE day_kline SET high = ?, low = ?, close = ? WHERE id = ?";
+        try (Connection conn = DatabaseUtil.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setBigDecimal(1, dayKLine.getHigh());
+            stmt.setBigDecimal(2, dayKLine.getLow());
+            stmt.setBigDecimal(3, dayKLine.getClose());
+            stmt.setLong(4, dayKLine.getId());
+            stmt.executeUpdate();
+            conn.commit();
         }
     }
 

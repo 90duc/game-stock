@@ -22,6 +22,8 @@ public class AccountView {
     private Label balanceLabel;
     private Label frozenLabel;
     private Label availableLabel;
+    private Label stockValueLabel;
+    private Label netAssetLabel;
     private TableView<Position> positionTable;
     private TableView<TradeRecord> tradeTable;
     private TableView<Order> orderTable;
@@ -77,7 +79,14 @@ public class AccountView {
         availableLabel = new Label("可用资金: 1000000.00");
         availableLabel.setStyle("-fx-font-size: 16px; -fx-text-fill: white;");
         
+        stockValueLabel = new Label("股票价值: 0.00");
+        stockValueLabel.setStyle("-fx-font-size: 16px; -fx-text-fill: white;");
+        
+        netAssetLabel = new Label("净资产: 1000000.00");
+        netAssetLabel.setStyle("-fx-font-size: 16px; -fx-text-fill: white;");
+        
         accountInfo.addRow(0, balanceLabel, frozenLabel, availableLabel);
+        accountInfo.addRow(1, stockValueLabel, netAssetLabel);
         
         // 创建TabPane标签页
         TabPane tabPane = new TabPane();
@@ -333,16 +342,26 @@ public class AccountView {
     }
     
     public void refresh() throws SQLException {
-        // 更新用户信息
         User user = tradingService.getUser(currentUser.getId());
         balanceLabel.setText(String.format("账户余额: %.2f", user.getBalance()));
         frozenLabel.setText(String.format("冻结资金: %.2f", user.getFrozenBalance()));
         availableLabel.setText(String.format("可用资金: %.2f", user.getAvailableBalance()));
         
-        // 更新持仓
+        // 更新持仓并计算股票价值
         List<Position> positions = tradingService.getUserPositions(user.getId());
         positionTable.getItems().clear();
         positionTable.getItems().addAll(positions);
+        
+        BigDecimal stockValue = BigDecimal.ZERO;
+        for (Position pos : positions) {
+            if (pos.getCurrentValue() != null) {
+                stockValue = stockValue.add(pos.getCurrentValue());
+            }
+        }
+        stockValueLabel.setText(String.format("股票价值: %.2f", stockValue));
+        
+        BigDecimal netAsset = user.getBalance().add(stockValue);
+        netAssetLabel.setText(String.format("净资产: %.2f", netAsset));
         
         // 更新成交记录
         List<TradeRecord> records = tradingService.getUserTradeRecords(user.getId());
