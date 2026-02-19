@@ -10,6 +10,7 @@ import java.sql.*;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
+import java.time.temporal.IsoFields;
 import java.util.*;
 
 public class StockTradingService {
@@ -595,16 +596,16 @@ public class StockTradingService {
             return Collections.emptyList();
         }
         
-        // 按日期升序排序，确保周K线连续
-        List<DayKLine> sortedDays = new ArrayList<>(dayKLines);
-        
         List<WeekKLine> weekKLines = new ArrayList<>();
         Map<Integer, List<DayKLine>> weekGroups = new LinkedHashMap<>();
         
-        for (DayKLine day : sortedDays) {
+        for (DayKLine day : dayKLines) {
             LocalDate date = day.getTradeDate();
             if (date == null) continue;
-            int weekKey = date.getYear() * 100 + date.get(java.time.temporal.IsoFields.WEEK_OF_WEEK_BASED_YEAR);
+            // 使用ISO周年，避免跨年周被拆分
+            int weekBasedYear = date.get(IsoFields.WEEK_BASED_YEAR);
+            int weekOfYear = date.get(IsoFields.WEEK_OF_WEEK_BASED_YEAR);
+            int weekKey = weekBasedYear * 100 + weekOfYear;
             weekGroups.computeIfAbsent(weekKey, k -> new ArrayList<>()).add(day);
         }
         
